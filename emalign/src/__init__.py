@@ -11,7 +11,13 @@ class _EMalignBundle(BundleAPI):
     # api_version = 1
     # register_command called with BundleInfo and CommandInfo instance instead of command name (when api_version==0)
 
-    # Override method
+    # Override methods
+    @staticmethod
+    def start_tool(session, tool_name):
+        from .emalign_gui import show_emalign_dialog
+        d = show_emalign_dialog(session)
+        return d
+
     @staticmethod
     def register_command(command_name, logger):
         from . import emalign_cmd
