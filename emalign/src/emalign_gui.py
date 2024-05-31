@@ -40,18 +40,19 @@ class EMalignDialog(ToolInstance):
         mlayout.setContentsMargins(0, 0, 0, 0)
         mlayout.setSpacing(10)
 
-        fl = QLabel('EMalign', mf)
+        fl = QLabel('Align query map', mf)
         mlayout.addWidget(fl)
 
         from chimerax.map import Volume
         from chimerax.ui.widgets import ModelMenuButton
         self._object_menu = om = ModelMenuButton(self.session, class_filter=Volume)
+        # here will need to add try\except:
         vlist = self.session.models.list(type=Volume)
         om.value = vlist[0]
         # om.value_changed.connect(self._object_chosen)
         mlayout.addWidget(om)
 
-        iml = QLabel('query map', mf)
+        iml = QLabel('to reference map', mf)
         mlayout.addWidget(iml)
 
         self._map_menu = mm = ModelMenuButton(self.session, class_filter=Volume)
@@ -65,11 +66,23 @@ class EMalignDialog(ToolInstance):
     def _create_action_buttons(self, parent):
         from chimerax.ui.widgets import button_row
         f, buttons = button_row(parent,
-                                [('EM Align', self._emalign)],
+                                [('align', self._emalign),
+                                 # ('Options', self._show_or_hide_options)
+                                 ],
                                 spacing=10,
                                 button_list=True)
 
         return f
+
+    def _show_or_hide_options(self):
+        self._options_panel.toggle_panel_display()
+
+    def _create_options_gui(self, parent):
+
+        from chimerax.ui.widgets import CollapsiblePanel
+        self._options_panel = p = CollapsiblePanel(parent, title=None)
+
+        return p
 
     def _emalign(self):
         query_map = self._query_map()
@@ -93,7 +106,7 @@ class EMalignDialog(ToolInstance):
     @classmethod
     def get_singleton(self, session, create=True):
         from chimerax.core import tools
-        return tools.get_singleton(session, EMalignDialog, 'EM Align Volumes', create=create)
+        return tools.get_singleton(session, EMalignDialog, 'EMalign', create=create)
 
     def status(self, message, log=False):
         self._status_label.setText(message)

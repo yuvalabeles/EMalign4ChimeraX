@@ -55,7 +55,7 @@ A algorithm for aligning rotation, reflection, and translation between volumes.
     <PythonClassifier>License :: Freeware</PythonClassifier>
     <!-- ChimeraX classifiers describe supplied functionality -->
     <ChimeraXClassifier>ChimeraX :: Command :: volume emalign :: Volume Data :: EM alignment of two volumes </ChimeraXClassifier>
-    <ChimeraXClassifier>ChimeraX :: Tool :: EM Align Volumes :: Volume Data :: EM alignment of two volumes </ChimeraXClassifier>
+    <ChimeraXClassifier>ChimeraX :: Tool :: EMalign :: Volume Data :: EM alignment of two volumes </ChimeraXClassifier>
   </Classifiers>
 
 </BundleInfo>
