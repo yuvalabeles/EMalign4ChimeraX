@@ -66,23 +66,21 @@ class EMalignDialog(ToolInstance):
     def _create_action_buttons(self, parent):
         from chimerax.ui.widgets import button_row
         f, buttons = button_row(parent,
-                                [('align', self._emalign),
-                                 # ('Options', self._show_or_hide_options)
-                                 ],
+                                [('align', self._emalign)],
                                 spacing=10,
                                 button_list=True)
 
         return f
 
-    def _show_or_hide_options(self):
-        self._options_panel.toggle_panel_display()
-
-    def _create_options_gui(self, parent):
-
-        from chimerax.ui.widgets import CollapsiblePanel
-        self._options_panel = p = CollapsiblePanel(parent, title=None)
-
-        return p
+    # def _show_or_hide_options(self):
+    #     self._options_panel.toggle_panel_display()
+    #
+    # def _create_options_gui(self, parent):
+    #
+    #     from chimerax.ui.widgets import CollapsiblePanel
+    #     self._options_panel = p = CollapsiblePanel(parent, title=None)
+    #
+    #     return p
 
     def _emalign(self):
         query_map = self._query_map()
