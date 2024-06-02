@@ -2,8 +2,6 @@ from chimerax.core.tools import ToolInstance
 
 
 class EMalignDialog(ToolInstance):
-    # help = 'help:user/tools/emalign.html'  # assure that contains help guide to EMalign
-
     def __init__(self, session, tool_name):
         ToolInstance.__init__(self, session, tool_name)
 
@@ -46,10 +44,9 @@ class EMalignDialog(ToolInstance):
         from chimerax.map import Volume
         from chimerax.ui.widgets import ModelMenuButton
         self._object_menu = om = ModelMenuButton(self.session, class_filter=Volume)
-        # here will need to add try\except:
         vlist = self.session.models.list(type=Volume)
-        om.value = vlist[0]
-        # om.value_changed.connect(self._object_chosen)
+        if vlist:
+            om.value = vlist[0]
         mlayout.addWidget(om)
 
         iml = QLabel('to reference map', mf)
@@ -66,21 +63,9 @@ class EMalignDialog(ToolInstance):
     def _create_action_buttons(self, parent):
         from chimerax.ui.widgets import button_row
         f, buttons = button_row(parent,
-                                [('align', self._emalign)],
-                                spacing=10,
-                                button_list=True)
+                                [('align', self._emalign)], spacing=10, button_list=True)
 
         return f
-
-    # def _show_or_hide_options(self):
-    #     self._options_panel.toggle_panel_display()
-    #
-    # def _create_options_gui(self, parent):
-    #
-    #     from chimerax.ui.widgets import CollapsiblePanel
-    #     self._options_panel = p = CollapsiblePanel(parent, title=None)
-    #
-    #     return p
 
     def _emalign(self):
         query_map = self._query_map()
@@ -111,7 +96,7 @@ class EMalignDialog(ToolInstance):
         if log:
             self.session.logger.info(message)
 
-    # query map chosen to align to ref map:
+    # The query map chosen to align to the reference map:
     def _query_map(self):
         m = self._object_menu.value
         from chimerax.map import Volume
