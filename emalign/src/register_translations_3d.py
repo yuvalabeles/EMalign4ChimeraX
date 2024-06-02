@@ -11,7 +11,6 @@ from numpy import fft
 from .reshift_vol import reshift_vol
 from . import reshift_vol
 from scipy.optimize import minimize
-# import pyfftw
 
 
 class fft_data_class:
@@ -30,10 +29,6 @@ class fft_data_class:
         self.in_array_b = np.empty((n, n, n2), dtype=complex_type)
         self.fft_object_f = fft.rfftn(self.in_array_f)
         self.fft_object_b = fft.irfftn(self.in_array_b)
-        # self.in_array_f = pyfftw.empty((n, n, n), dtype=real_type)
-        # self.in_array_b = pyfftw.empty_aligned((n, n, n2), dtype=complex_type)
-        # self.fftw_object_f = pyfftw.builders.rfftn(self.in_array_f)
-        # self.fftw_object_b = pyfftw.builders.irfftn(self.in_array_b)
 
 
 # %%
@@ -64,34 +59,26 @@ def refine3DshiftBFGS(vol1, vol2, estdx):
 
 # %%
 def register_translations_3d(vol1, vol2):
-    # REGISTER_TRANSLATIONS_3D  Estimate relative shift between two volumes.
-    # register_translations_3d(vol1,vol2,refdx)
-    #   Estimate the relative shift between two volumes vol1 and vol2 to 
-    #   integral pixel accuracy. The function uses phase correlation to 
-    #   estimate the relative shift to within one pixel accuray.
-    #
-    #   Input parameters:
-    #   vol1,vol2 Two volumes to register. Volumes must be odd-sized.
-    #   refidx    Two-dimensional vector with the true shift between the images,
-    #             used for debugging purposes. (Optional)
-    #   Output parameters
-    #   estidx  A two-dimensional vector of how much to shift vol2 to aligh it
-    #           with vol1. Returns -1 on error.
-    #   err     Difference between estidx and refidx.
+    """
+    REGISTER_TRANSLATIONS_3D  Estimate relative shift between two volumes.
+    register_translations_3d(vol1,vol2,refdx)
+      Estimate the relative shift between two volumes vol1 and vol2 to
+      integral pixel accuracy. The function uses phase correlation to
+      estimate the relative shift to within one pixel accuray.
 
-    # Take Fourer transform of both volumes and compute the phase correlation
-    # factors.
+      Input parameters:
+      vol1,vol2 Two volumes to register. Volumes must be odd-sized.
+      refidx    Two-dimensional vector with the true shift between the images,
+                used for debugging purposes. (Optional)
+      Output parameters
+      estidx  A two-dimensional vector of how much to shift vol2 to aligh it
+              with vol1. Returns -1 on error.
+      err     Difference between estidx and refidx.
+    """
 
-    # if fft_object is None:
-    #     fft_object = fft_data_class(vol1)
-
+    # Take Fourer transform of both volumes and compute the phase correlation factors.
     hats1 = fft.fftn(vol1)  # Compute centered Fourier transform
     hats2 = fft.fftn(vol2)
-
-    # fft_object.in_array_f[:] = vol1[:]
-    # hats1 = (fft_object.fft_object_f(fft_object.in_array_f)).copy()
-    # fft_object.in_array_f[:] = vol2[:]
-    # hats2 = (fft_object.fft_object_f(fft_object.in_array_f)).copy()
 
     tmp1 = hats1 * np.conj(hats2)
     tmp2 = abs(tmp1)
@@ -102,9 +89,6 @@ def register_translations_3d(vol1, vol2):
 
     # Compute the relative shift between the images to within 1 pixel accuracy.
     r = fft.ifftn(rhat).real
-    # fft_object.in_array_b[:] = rhat[:]
-    # r = fftw_object.fftw_object_b(fftw_object.in_array_b)
-    # r = fft.irfftn(fft_object.in_array_b)
     ii = np.argmax(r)
 
     # Find the center
@@ -124,7 +108,3 @@ def register_translations_3d(vol1, vol2):
 
     # No need to refine tranlations
     return np.array(estdx)
-
-    # bestdx = refine3DshiftBFGS(vol1, vol2, estdx)
-
-    # return bestdx

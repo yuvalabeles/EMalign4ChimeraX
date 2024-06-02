@@ -7,80 +7,26 @@ Created on Wed May 26 11:11:19 2021
 """
 
 import numpy as np
-# from numpy import fft
 from numpy.fft import fft, ifft
 import math
 import cmath
 from scipy.spatial.transform import Rotation
 
 
-# import pyfftw
-
-
-# class fftw_data_class:
-#     def __init__(self, in_data, num_threads=1):
-#         n = in_data.shape[0]
-#         n2 = n // 2 + 1
-#
-#         if in_data.dtype == np.float32:
-#             real_type = np.float32
-#             complex_type = np.complex64
-#         else:
-#             real_type = np.float64
-#             complex_type = np.complex128
-#
-#         self.in_array_f_0 = np.empty((n, n), dtype=real_type)
-#         self.out_array_f_0 = np.empty((n2, n), dtype=complex_type)
-#         self.in_array_f_1 = np.empty((n, n), dtype=real_type)
-#         self.out_array_f_1 = np.empty((n, n2), dtype=complex_type)
-#         self.in_array_b_0 = np.empty((n2, n), dtype=complex_type)
-#         self.out_array_b_0 = np.empty((n, n), dtype=real_type)
-#         self.in_array_b_1 = np.empty((n, n2), dtype=complex_type)
-#         self.out_array_b_1 = np.empty((n, n), dtype=real_type)
-#
-#         self.fftw_object_0 = pyfftw.FFTW(self.in_array_f_0,
-#                                          self.out_array_f_0,
-#                                          direction="FFTW_FORWARD",
-#                                          flags=("FFTW_ESTIMATE",),
-#                                          axes=(0,),
-#                                          threads=num_threads)
-#
-#         self.fftw_object_1 = pyfftw.FFTW(self.in_array_f_1,
-#                                          self.out_array_f_1,
-#                                          direction="FFTW_FORWARD",
-#                                          flags=("FFTW_ESTIMATE",),
-#                                          axes=(1,),
-#                                          threads=num_threads)
-#
-#         self.ifftw_object_0 = pyfftw.FFTW(self.in_array_b_0,
-#                                           self.out_array_b_0,
-#                                           direction="FFTW_BACKWARD",
-#                                           flags=("FFTW_ESTIMATE",),
-#                                           axes=(0,),
-#                                           normalise_idft=True,
-#                                           threads=num_threads)
-#
-#         self.ifftw_object_1 = pyfftw.FFTW(self.in_array_b_1,
-#                                           self.out_array_b_1,
-#                                           direction="FFTW_BACKWARD",
-#                                           flags=("FFTW_ESTIMATE",),
-#                                           axes=(1,),
-#                                           normalise_idft=True,
-#                                           threads=num_threads)
-#
-
 # %%
 def fastrotate3d(vol, Rot):
-    # FASTROTATE3D Rotate a 3D volume by a given rotation matrix.
-    # Input parameters:
-    #  INPUT    Volume to rotate, can be odd or even.
-    #  Rot        3x3 rotation matrix.
-    # Output parameters:
-    #  OUTPUT   The rotated volume.
-    # Examples:
-    #   Rot=rand_rots(1);
-    #   rvol=fastrotate3d(vol,Rot);
-    # Yoel Shkolnisky, November 2013.
+    """
+    FASTROTATE3D Rotate a 3D volume by a given rotation matrix.
+    Input parameters:
+     INPUT    Volume to rotate, can be odd or even.
+     Rot        3x3 rotation matrix.
+    Output parameters:
+     OUTPUT   The rotated volume.
+    Examples:
+      Rot=rand_rots(1);
+      rvol=fastrotate3d(vol,Rot);
+    Yoel Shkolnisky, November 2013.
+    """
 
     Rot_obj = Rotation.from_matrix(Rot)
     [psi, theta, phi] = Rot_obj.as_euler('xyz')
@@ -98,11 +44,13 @@ def fastrotate3d(vol, Rot):
 
 # %%
 def adjustrotate(phi):
-    # Decompose a rotation CCW by phi into a rotation of mult90 times 90
-    # degrees followed by a rotation by phi2, where phi2 is between -45 and 45.
-    # mult90 is an integer between 0 and 3 describing by how many multiples of
-    # 90 degrees the image should be rotated so that an additional rotation by
-    # phi2 is equivalent to rotation by phi.
+    """
+    Decompose a rotation CCW by phi into a rotation of mult90 times 90
+    degrees followed by a rotation by phi2, where phi2 is between -45 and 45.
+    mult90 is an integer between 0 and 3 describing by how many multiples of
+    90 degrees the image should be rotated so that an additional rotation by
+    phi2 is equivalent to rotation by phi.
+    """
 
     phi = np.mod(phi, 360)
     mult90 = 0
@@ -136,16 +84,18 @@ def adjustrotate(phi):
 
 # %%
 def fastrotateprecomp(SzX, SzY, phi):
-    # Compute the interpolation tables required to rotate an image with SzX
-    # rows and SzY columns by an angle phi CCW.
-    #
-    # This function is used to accelerate fastrotate, in case many images are
-    # needed to be rotated by the same angle. In such a case it allows to
-    # precompute the interpolation tables only once instead of computing them
-    # for each image.
-    #
-    # M is a structure containing phi, Mx, My, where Mx and My are the
-    # interpolation tables used by fastrotate.
+    """
+    Compute the interpolation tables required to rotate an image with SzX
+    rows and SzY columns by an angle phi CCW.
+
+    This function is used to accelerate fastrotate, in case many images are
+    needed to be rotated by the same angle. In such a case it allows to
+    precompute the interpolation tables only once instead of computing them
+    for each image.
+
+    M is a structure containing phi, Mx, My, where Mx and My are the
+    interpolation tables used by fastrotate.
+    """
 
     # Adjust the rotation angle to be between -45 and 45 degrees.
     [phi, mult90] = adjustrotate(phi)
@@ -195,20 +145,22 @@ def fastrotateprecomp(SzX, SzY, phi):
 
 # %%
 def fastrotate(vol, phi, M=None):
-    # 3-step image rotation by shearing.
-    #
-    # Input parameters:
-    #  INPUT    Image to rotate, can be odd or even. If INPUT is a 3D array,
-    #           each slice is rotated by phi.
-    #  phi      Rotation angle in degrees CCW. Can be any angle (not limited
-    #           like fastrotate_ref). Note that Yaroslavsky's code take phi CW.
-    #  M        (Optional) Precomputed interpolation tables, as generated by
-    #           fastrotateprecomp. If M is given than phi is ignored. This is
-    #           useful if many images need to be rotated by the same angle,
-    #           since then the computation of the same interpolation tables
-    #           over and over again is avoided.
-    # Output parameters:
-    #  OUTPUT   The rotated image.
+    """
+    3-step image rotation by shearing.
+
+    Input parameters:
+     INPUT    Image to rotate, can be odd or even. If INPUT is a 3D array,
+              each slice is rotated by phi.
+     phi      Rotation angle in degrees CCW. Can be any angle (not limited
+              like fastrotate_ref). Note that Yaroslavsky's code take phi CW.
+     M        (Optional) Precomputed interpolation tables, as generated by
+              fastrotateprecomp. If M is given than phi is ignored. This is
+              useful if many images need to be rotated by the same angle,
+              since then the computation of the same interpolation tables
+              over and over again is avoided.
+    Output parameters:
+     OUTPUT   The rotated image.
+    """
 
     SzX = np.size(vol, 0)
     SzY = np.size(vol, 1)
@@ -236,39 +188,23 @@ def fastrotate(vol, phi, M=None):
         spinput = spinput * My
         vol_out[:, :, k] = np.real(ifft(spinput, n=None, axis=1))
 
-        # fftw_data.in_array_f_1[:, :] = im_out
-        # spinput_1[:, :] = fftw_data.fftw_object_1(fftw_data.in_array_f_1)
-        # spinput_1 = spinput_1 * My[:, 0:n2]
-        # fftw_data.in_array_b_1[:, :] = spinput_1[:, :]
-        # im_out[:, :] = fftw_data.ifftw_object_1(fftw_data.in_array_b_1)
-
         spinput = fft(vol_out[:, :, k], n=None, axis=0)
         spinput = spinput * Mx
         vol_out[:, :, k] = np.real(ifft(spinput, n=None, axis=0))
 
-        # fftw_data.in_array_f_0[:, :] = im_out
-        # spinput_0[:, :] = fftw_data.fftw_object_0(fftw_data.in_array_f_0)
-        # spinput_0 = spinput_0 * Mx[0:n2, :]
-        # fftw_data.in_array_b_0[:, :] = spinput_0[:, :]
-        # im_out[:, :] = fftw_data.ifftw_object_0(fftw_data.in_array_b_0)
-
         spinput = fft(vol_out[:, :, k], n=None, axis=1)
         spinput = spinput * My
         vol_out[:, :, k] = np.real(ifft(spinput, n=None, axis=1))
-
-    # fftw_data.in_array_f_1[:, :] = im_out
-    # spinput_1[:, :] = fftw_data.fftw_object_1(fftw_data.in_array_f_1)
-    # spinput_1 = spinput_1 * My[:, 0:n2]
-    # fftw_data.in_array_b_1[:, :] = spinput_1[:, :]
-    # im_out[:, :] = fftw_data.ifftw_object_1(fftw_data.in_array_b_1)
 
     return vol_out
 
 
 # %%
 def rot90(A):
-    # Rotate the image A by 90 degrees CCW.
-    #   B = rot90(A)
+    """
+    Rotate the image A by 90 degrees CCW.
+      B = rot90(A)
+    """
     B = A.T
     B = np.flip(B, 0)
     return B
@@ -276,8 +212,10 @@ def rot90(A):
 
 # %%
 def rot180(A):
-    # Rotate the image A by 180 degrees CCW.
-    #   B = rot180(A)
+    """
+    Rotate the image A by 180 degrees CCW.
+      B = rot180(A)
+    """
     B = np.flip(A, 0)
     B = np.flip(B, 1)
     return B
@@ -285,9 +223,10 @@ def rot180(A):
 
 # %%
 def rot270(A):
-    # Rotate the image A by 270 degrees CCW.
-    #   B = rot270(A)
-
+    """
+    Rotate the image A by 270 degrees CCW.
+      B = rot270(A)
+    """
     B = A.T
     B = np.flip(B, 1)
     return B
@@ -295,30 +234,30 @@ def rot270(A):
 
 # %%
 def fastrotate3x(vol, phi):
-    # FASTROTATE3X Rotate a 3D volume around the x-axis.
-    # Input parameters:
-    #  INPUT    Volume to rotate, can be odd or even.
-    #  phi      Rotation angle in degrees CCW.
-    #  M        (Optional) Precomputed interpolation tables, as generated by
-    #           fastrotateprecomp. If M is given than phi is ignored.
-    #
-    # Output parameters:
-    #  OUTPUT   The rotated volume.
-    #
-    # Examples:
-    #
-    #   rvol=fastrotate3x(vol,20);
-    #
-    #   M=fastrotateprecomp(size(vol,2),size(vol,3),20);
-    #   rvol=fastrotate(vol,[],M);
+    """
+    FASTROTATE3X Rotate a 3D volume around the x-axis.
+    Input parameters:
+     INPUT    Volume to rotate, can be odd or even.
+     phi      Rotation angle in degrees CCW.
+     M        (Optional) Precomputed interpolation tables, as generated by
+              fastrotateprecomp. If M is given than phi is ignored.
 
-    # if fftw_data is None:
-    #     fftw_data = fftw_data_class(vol)
+    Output parameters:
+     OUTPUT   The rotated volume.
+
+    Examples:
+
+      rvol=fastrotate3x(vol,20);
+
+      M=fastrotateprecomp(size(vol,2),size(vol,3),20);
+      rvol=fastrotate(vol,[],M);
+    """
 
     SzX = np.size(vol, 0)
     SzY = np.size(vol, 1)
     SzZ = np.size(vol, 2)
-    # Precompte M
+
+    # Precompte M:
     M = fastrotateprecomp(SzY, SzZ, phi)
     vol_out = np.zeros((SzX, SzY, SzZ), dtype=float)
     for k in range(SzX):
@@ -331,25 +270,24 @@ def fastrotate3x(vol, phi):
 
 # %%
 def fastrotate3y(vol, phi):
-    # FASTROTATE3X Rotate a 3D volume around the x-axis.
-    # Input parameters:
-    #  INPUT    Volume to rotate, can be odd or even.
-    #  phi      Rotation angle in degrees CCW.
-    #  M        (Optional) Precomputed interpolation tables, as generated by
-    #           fastrotateprecomp. If M is given than phi is ignored.
-    #
-    # Output parameters:
-    #  OUTPUT   The rotated volume.
-    #
-    # Examples:
-    #
-    #   rvol=fastrotate3x(vol,20);
-    #
-    #   M=fastrotateprecomp(size(vol,2),size(vol,3),20);
-    #   rvol=fastrotate(vol,[],M);
+    """
+    FASTROTATE3X Rotate a 3D volume around the x-axis.
+    Input parameters:
+     INPUT    Volume to rotate, can be odd or even.
+     phi      Rotation angle in degrees CCW.
+     M        (Optional) Precomputed interpolation tables, as generated by
+              fastrotateprecomp. If M is given than phi is ignored.
 
-    # if fftw_data is None:
-    #     fftw_data = fftw_data_class(vol)
+    Output parameters:
+     OUTPUT   The rotated volume.
+
+    Examples:
+
+      rvol=fastrotate3x(vol,20);
+
+      M=fastrotateprecomp(size(vol,2),size(vol,3),20);
+      rvol=fastrotate(vol,[],M);
+    """
 
     SzX = np.size(vol, 0)
     SzY = np.size(vol, 1)
@@ -367,25 +305,24 @@ def fastrotate3y(vol, phi):
 
 # %%
 def fastrotate3z(vol, phi):
-    # FASTROTATE3X Rotate a 3D volume around the x-axis.
-    # Input parameters:
-    #  INPUT    Volume to rotate, can be odd or even.
-    #  phi      Rotation angle in degrees CCW.
-    #  M        (Optional) Precomputed interpolation tables, as generated by
-    #           fastrotateprecomp. If M is given than phi is ignored.
-    #
-    # Output parameters:
-    #  OUTPUT   The rotated volume.
-    #
-    # Examples:
-    #
-    #   rvol=fastrotate3x(vol,20);
-    #
-    #   M=fastrotateprecomp(size(vol,2),size(vol,3),20);
-    #   rvol=fastrotate(vol,[],M);
+    """
+    FASTROTATE3X Rotate a 3D volume around the x-axis.
+    Input parameters:
+     INPUT    Volume to rotate, can be odd or even.
+     phi      Rotation angle in degrees CCW.
+     M        (Optional) Precomputed interpolation tables, as generated by
+              fastrotateprecomp. If M is given than phi is ignored.
 
-    # if fftw_data is None:
-    #     fftw_data = fftw_data_class(vol)
+    Output parameters:
+     OUTPUT   The rotated volume.
+
+    Examples:
+
+      rvol=fastrotate3x(vol,20);
+
+      M=fastrotateprecomp(size(vol,2),size(vol,3),20);
+      rvol=fastrotate(vol,[],M);
+    """
 
     SzX = np.size(vol, 0)
     SzY = np.size(vol, 1)
@@ -399,15 +336,3 @@ def fastrotate3z(vol, phi):
         vol_out[:, :, k] = rim.reshape((SzX, SzY))
 
     return vol_out
-
-# import scipy.io as matio
-# mat_vars = matio.loadmat("../mattemp.mat")
-# vol = mat_vars["vol"]
-# R = mat_vars["R"]
-# vol_rot = fastrotate3d(vol, R)
-# print(np.linalg.norm(vol_rot - mat_vars["vol_rot"])/np.linalg.norm(vol_rot))
-# vol_rot = fastrotate3d(vol, R)
-# print(np.linalg.norm(vol_rot - mat_vars["vol_rot"])/np.linalg.norm(vol_rot))
-# vol2 = fastrotate3d(vol_rot,R.transpose())
-# np.corrcoef(vol2.ravel(),vol.ravel())
-# aaa = 1
