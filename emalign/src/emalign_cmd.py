@@ -7,7 +7,7 @@ from . import align_volumes_3d
 
 def register_emalign_command(logger):
     from chimerax.core.commands import CmdDesc, register
-    from chimerax.core.commands import BoolArg, IntArg
+    from chimerax.core.commands import IntArg
     from chimerax.map.mapargs import MapArg
 
     emalign_desc = CmdDesc(
@@ -20,8 +20,7 @@ def register_emalign_command(logger):
         ],
         optional=[
             ('downsample', IntArg),
-            ('projections', IntArg),
-            ('hide_map', BoolArg)
+            ('projections', IntArg)
         ],
         required_arguments=['ref_map', 'query_map'],
         synopsis='Perform EM-alignment of two density maps'
@@ -92,7 +91,7 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30):
     query_map.replace_data(aligned_map_grid_data)
 
     # fitmap query_map inMap ref_map:
-    log.info("Using fitmap to perform final refinement!")
+    log.info("Used fitmap to perform final refinement.")
     fitcmd.fit_map_in_map(query_map, ref_map, metric='correlation', envelope=True, zeros=False, shift=True, rotate=True,
                           move_whole_molecules=True, map_atoms=None, max_steps=2000, grid_step_min=0.01, grid_step_max=0.5)
 
