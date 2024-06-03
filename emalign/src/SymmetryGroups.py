@@ -12,16 +12,17 @@ from numpy import linalg as LA
 
 
 def genSymGroup(sym):
-    # This function generates the symmetry group of the given symmetry type. 
-    # The symmetry elements are being generated according to the most common 
-    # coordinate systems of molecules from the EMDB. Note that it is necessary  
-    # to check that the generated symmetry group is indeed the appropriate one.  
-    # Input:
-    # sym- the symmetry type- 'Cn'\'Dn'\'T'\'O'\'I', where n is the symmetry
-    #      order.  
-    # Output:
-    # G- size=(3,3,N) the symmetry group elemnts, where N is the amount of 
-    #    symmetry elements in G.    
+    """
+    This function generates the symmetry group of the given symmetry type.
+    The symmetry elements are being generated according to the most common
+    coordinate systems of molecules from the EMDB. Note that it is necessary
+    to check that the generated symmetry group is indeed the appropriate one.
+    Input:
+    sym- the symmetry type- 'Cn'\'Dn'\'T'\'O'\'I', where n is the symmetry
+         order.
+    Output:
+    G- size=(3,3,N) the symmetry group elemnts, where N is the amount of symmetry elements in G.
+    """
     # %%
     s = sym[0]
     n_s = 0

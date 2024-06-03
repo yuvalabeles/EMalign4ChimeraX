@@ -1,33 +1,13 @@
-# import chimerax.core
 from chimerax.map_fit import fitcmd
 from chimerax.map_data import arraygrid
-# from chimerax.map_data import griddata
 import numpy as np
 from chimerax.core.errors import UserError
-# from mrcfile import mrcfile
-
-# import chimerax.log
 from . import align_volumes_3d
-
-
-# import mrcfile
-# from chimerax.map_data import mrc
-
-
-#########
-# Steps:
-#########
-#   - get two maps (volume data) from user (through ChimeraX), and additional args (optional)
-#   - put the maps into variables using ChimeraX functions (so the maps are objects of Volume, Model, etc.)
-#   - convert the maps to the format used in the emalign existing code
-#   - align the volumes
-#   - display the aligned map in the session
-#   - hide the original (not-aligned) query map if hideMap == True
 
 
 def register_emalign_command(logger):
     from chimerax.core.commands import CmdDesc, register
-    from chimerax.core.commands import BoolArg, IntArg
+    from chimerax.core.commands import IntArg
     from chimerax.map.mapargs import MapArg
 
     emalign_desc = CmdDesc(
@@ -40,8 +20,7 @@ def register_emalign_command(logger):
         ],
         optional=[
             ('downsample', IntArg),
-            ('projections', IntArg),
-            ('hide_map', BoolArg)
+            ('projections', IntArg)
         ],
         required_arguments=['ref_map', 'query_map'],
         synopsis='Perform EM-alignment of two density maps'
@@ -51,11 +30,6 @@ def register_emalign_command(logger):
 
 def emalign(session, ref_map, query_map, downsample=64, projections=30):
     log = session.logger
-
-    # chimerax.map.volume.save_map(session, "temp_vol_1", "mrc", models=ref_map)
-    # chimerax.map.volume.save_map(session, "temp_vol_2", "mrc", models=query_map)
-
-    # grid_ref_map_data = ref_map.data
 
     # Save original parameters of query_map: {origin, step, cell_angles, rotation, symmetries, name}
     grid_query_map_data = query_map.data
@@ -117,42 +91,9 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30):
     query_map.replace_data(aligned_map_grid_data)
 
     # fitmap query_map inMap ref_map:
-    log.info("Using fitmap to perform final refinement!")
+    log.info("Used fitmap to perform final refinement.")
     fitcmd.fit_map_in_map(query_map, ref_map, metric='correlation', envelope=True, zeros=False, shift=True, rotate=True,
                           move_whole_molecules=True, map_atoms=None, max_steps=2000, grid_step_min=0.01, grid_step_max=0.5)
 
     # Show the query_map (aligned):
     query_map.show(show=True)
-
-    # ******************************************************************************************************************
-    # Old code:
-    # ******************************************************************************************************************
-
-    # # Set query_map voxel size to ref_map voxel size:
-    # ref_map_data = ref_map.data
-    # query_map_data = query_map.data
-    # ref_map_vsize = ref_map_data.step
-    # query_map_vsize = query_map_data.step
-    # log.info("ref_map voxel size = " + str(ref_map_vsize))
-    # log.info("query_map voxel size = " + str(query_map_vsize))
-    # if ref_map_vsize != query_map_vsize:
-    #     query_map_data.set_step(ref_map_vsize)
-    #     log.info("Updated query_map voxel size to " + str(query_map_data.step))
-
-    # # **************************************************************
-    # # CODE BELOW SAVES THE ALIGNED MAP - CAN BE DELETED AFTER TESTS
-    # # **************************************************************
-    # # Save:
-    # # Copy vol2 to save header
-
-    # # PROBLEM - args.vol2 here is the file not the data itself:
-    # shutil.copyfile(args.vol2, args.output_vol)
-
-    # # SOLUTION - save first the old vol2:
-    # mrc.save(vol2, filename)
-    # # Change and save:
-    # mrc_fh = mrcfile.open("pre_change_vol2", mode='r+')
-    # mrc_fh.set_data(vol2aligned.astype('float32').T)
-    # mrc_fh.set_volume()
-    # mrc_fh.update_header_stats()
-    # mrc_fh.close()

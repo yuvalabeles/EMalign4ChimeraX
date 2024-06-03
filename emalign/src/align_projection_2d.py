@@ -5,7 +5,6 @@ import time
 
 import numpy as np
 from numpy import linalg as LA
-# from src.commonline_R2 import commonline_R2, cryo_normalize
 from .commonline_R2 import cryo_normalize
 from .common_finufft import cryo_pft
 from .cryo_project_itay_finufft import cryo_project

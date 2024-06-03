@@ -11,14 +11,16 @@ import math
 
 
 def q_to_rot(q):
-    # Convert a quaternion into a rotation matrix.
+    """
+    Convert a quaternion into a rotation matrix.
 
-    #   Input: 
-    #           q: quaternion. May be a vector of dimensions 4 x n
-    #   Output: 
-    #           rot_matrix: 3x3xn rotation matrix
+      Input:
+              q: quaternion. May be a vector of dimensions 4 x n
+      Output:
+              rot_matrix: 3x3xn rotation matrix
 
-    #   Yariv Aizenbud 31.01.2016
+      Yariv Aizenbud 31.01.2016
+    """
 
     n = np.size(q, axis=1)
     rot_matrix = np.zeros((3, 3, n))
@@ -39,24 +41,26 @@ def q_to_rot(q):
 
 
 def genRotationsGrid(res):
-    # genRotationsGrid generate approximatly equally spaced rotations.
-    #   Input:
-    #       resolution - the number of samples per 2*pi.
-    #                    for example:
-    #                        resolution = 50  you get   4484 rotations
-    #                        resolution = 75  you get  15236 rotations
-    #                        resolution = 100 you get  39365 rotations
-    #                        resolution = 150 you get 129835 rotations
-    #   Output:
-    #       rotations - 3X3Xnumber_of_rotations matrix. of all the rotations.
-    # angles - 3Xnumber_of_rotations matrix. each column contains three
-    #          angles of the rotation in the following parametrization for
-    #          quaternions:
-    #          parametrization for SO3
-    #               x = sin(tau)* sin(theta)* sin(phi);
-    #               y = sin(tau)* sin(theta)* cos(phi);
-    #               z = sin(tau)* cos(theta);
-    #               w = cos(tau);
+    """
+    genRotationsGrid generate approximatly equally spaced rotations.
+      Input:
+          resolution - the number of samples per 2*pi.
+                       for example:
+                           resolution = 50  you get   4484 rotations
+                           resolution = 75  you get  15236 rotations
+                           resolution = 100 you get  39365 rotations
+                           resolution = 150 you get 129835 rotations
+      Output:
+          rotations - 3X3Xnumber_of_rotations matrix. of all the rotations.
+    angles - 3Xnumber_of_rotations matrix. each column contains three
+             angles of the rotation in the following parametrization for
+             quaternions:
+             parametrization for SO3
+                  x = sin(tau)* sin(theta)* sin(phi);
+                  y = sin(tau)* sin(theta)* cos(phi);
+                  z = sin(tau)* cos(theta);
+                  w = cos(tau);
+    """
 
     counter = 0
     tau_step = (math.pi / 2) / (res / 4)

@@ -11,7 +11,6 @@ import numpy as np
 from numpy import linalg as LA
 from scipy.optimize import minimize
 from scipy.spatial.transform import Rotation
-# from . import common_finufft
 from .common_finufft import cryo_downsample
 from .cryo_project_itay_finufft import cryo_project
 from .genRotationsGrid import genRotationsGrid
@@ -19,7 +18,6 @@ from .align_projection_2d import align_projection
 from .fastrotate3d import fastrotate3d
 from . import fastrotate3d
 from .register_translations_3d import register_translations_3d, refine3DshiftBFGS
-# from register_translations_3d import refine3DshiftBFGS
 from .reshift_vol import reshift_vol
 from . import reshift_vol
 from .SymmetryGroups import genSymGroup

@@ -10,7 +10,6 @@ import numpy as np
 from numpy import fft
 import finufft
 
-# from pyfftw.interfaces.numpy_fft import ifft2
 import warnings
 warnings.filterwarnings("ignore")
 
