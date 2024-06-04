@@ -18,19 +18,23 @@ class EMalignDialog(ToolInstance):
         layout.addWidget(mf)
 
         # Make optional arguments fields:
-        from chimerax.ui.widgets import EntriesRow
+        # from chimerax.ui.widgets import EntriesRow
 
-        ds = EntriesRow(parent, 'Downsample', ('default (64)', '32', '64', '128', '256'))
-        self._downsample_frame = ds.frame
-        self._downsample = ds.values[0]
-
-        prj = EntriesRow(parent, 'Projections', tuple(['default (30)'] + [str(i*10) for i in range(1, 10)]))
-        self._projections_frame = prj.frame
-        self._projections = prj.values[0]
+        # ds = EntriesRow(parent, 'Downsample', ('default (64)', '32', '64', '128', '256'))
+        # self._downsample_frame = ds.frame
+        # self._downsample = ds.values[0]
+        #
+        # prj = EntriesRow(parent, 'Projections', tuple(['default (30)'] + [str(i*10) for i in range(1, 10)]))
+        # self._projections_frame = prj.frame
+        # self._projections = prj.values[0]
 
         # Align button:
         bf = self._create_action_buttons(parent)
         layout.addWidget(bf)
+
+        # Options panel
+        options = self._create_options_gui(parent)
+        layout.addWidget(options)
 
         # Status line:
         from Qt.QtWidgets import QLabel
@@ -58,6 +62,7 @@ class EMalignDialog(ToolInstance):
         vlist = self.session.models.list(type=Volume)
         if vlist:
             om.value = vlist[0]
+        om.value_changed.connect(self._object_chosen)
         mlayout.addWidget(om)
 
         iml = QLabel('to reference map', mf)
@@ -73,9 +78,83 @@ class EMalignDialog(ToolInstance):
 
     def _create_action_buttons(self, parent):
         from chimerax.ui.widgets import button_row
-        f, buttons = button_row(parent, [('align', self._emalign)], spacing=10, button_list=True)
+        f, buttons = button_row(parent, [('align', self._emalign),
+                                         ('Options', self._show_or_hide_options)], spacing=10, button_list=True)
 
         return f
+
+    def _create_options_gui(self, parent):
+
+        from chimerax.ui.widgets import CollapsiblePanel
+        self._options_panel = p = CollapsiblePanel(parent, title=None)
+        f = p.content_area
+
+        from chimerax.ui.widgets import EntriesRow, radio_buttons
+
+        # # ref_map = self._map_menu.value
+        # query_map = self._query_map()
+        #
+        # # ref_map_size = max(ref_map.data.size)
+        # v_size = max(query_map.data.size)
+
+        # EntriesRow(f, 'Downsample:', True, 'actual size', False, '64', False, '128', False, '256')
+        EntriesRow(f, 'Downsample:')
+        s_real = EntriesRow(f, True, 'actual size (<64)')
+        s_64 = EntriesRow(f, False, '64')
+        s_128 = EntriesRow(f, False, '128')
+        s_256 = EntriesRow(f, False, '256')
+
+        self._no_downsample, self._downsample_64, self._downsample_128, self._downsample_256 = s_real.values[0], s_64.values[0], s_128.values[0], s_256.values[0]
+        radio_buttons(self._no_downsample, self._downsample_64, self._downsample_128, self._downsample_256)
+        self._no_downsample_frame, self._downsample_64_frame, self._downsample_128_frame, self._downsample_256_frame = s_real.frame, s_64.frame, s_128.frame, s_256.frame
+
+        # if v_size <= 64:
+        #     self._no_downsample_frame.setEnabled(True)
+        #     self._downsample_64_frame.setEnabled(False)
+        #     self._downsample_128_frame.setEnabled(False)
+        #     self._downsample_256_frame.setEnabled(False)
+        #
+        # elif 64 < v_size <= 128:
+        #     self._no_downsample_frame.setEnabled(True)
+        #     self._downsample_64_frame.setEnabled(True)
+        #     self._downsample_128_frame.setEnabled(False)
+        #     self._downsample_256_frame.setEnabled(False)
+        # elif 128 < v_size <= 256:
+        #     self._no_downsample_frame.setEnabled(True)
+        #     self._downsample_64_frame.setEnabled(True)
+        #     self._downsample_128_frame.setEnabled(True)
+        #     self._downsample_256_frame.setEnabled(False)
+        # else:
+        #     self._no_downsample_frame.setEnabled(False)
+        #     self._downsample_64_frame.setEnabled(True)
+        #     self._downsample_128_frame.setEnabled(True)
+        #     self._downsample_256_frame.setEnabled(True)
+
+        ################################################################################################################
+        # per = EntriesRow(f, 'Projections:', True, 'default', False, '25', False, '50', False, '125')
+        # self._projections_default, self._projections_25, self._projections_50, self._projections_125 = per.values
+        # radio_buttons(self._projections_default, self._projections_25, self._projections_50, self._projections_125)
+        # self._projections_frame = per.frame
+        ################################################################################################################
+
+        # came = EntriesRow(f, False, 'Correlation calculated about mean data value')
+        # self._corr_about_mean = cam = came.values[0]
+        # cam.changed.connect(self._update_metric_values)
+        # self._corr_about_mean_frame = came.frame
+
+        # ar = EntriesRow(f, 'Allow', True, 'rotation', True, 'shift')
+        # self._allow_rotation, self._allow_shift = ar.values
+        #
+        # mwme = EntriesRow(f, True, 'Move whole molecules')
+        # self._move_whole_molecules = mwme.values[0]
+        # self._move_whole_molecules_frame = mwme.frame
+
+        self._gray_out_options()
+
+        return p
+
+    def _show_or_hide_options(self):
+        self._options_panel.toggle_panel_display()
 
     def _emalign(self):
         query_map = self._query_map()
@@ -90,14 +169,14 @@ class EMalignDialog(ToolInstance):
         if query_map == ref_map:
             self.status('Map to align must be different from map being aligned to.')
             return
-        if self._downsample.value == 'default (64)':
-            ds = 64
-        else:
-            ds = int(self._downsample.value)
-        if self._projections.value == 'default (30)':
-            prj = 30
-        else:
-            prj = int(self._projections.value)
+        # if self._downsample.value == 'default (64)':
+        #     ds = 64
+        # else:
+        #     ds = int(self._downsample.value)
+        # if self._projections.value == 'default (30)':
+        #     prj = 30
+        # else:
+        #     prj = int(self._projections.value)
 
         # if ds == '':
         #     self.status('Enter the downsampled size in pixels (default 64).')
@@ -112,11 +191,11 @@ class EMalignDialog(ToolInstance):
         #     self.status('Invalid projections number. Must be at least 1 (default 30).')
         #     return
 
-        self._run_emalign(ref_map, query_map, ds, prj)
+        self._run_emalign(ref_map, query_map)
 
-    def _run_emalign(self, ref_map, query_map, ds, prj):
+    def _run_emalign(self, ref_map, query_map):
         from .emalign_cmd import emalign
-        emalign(self.session, ref_map, query_map, ds, prj)
+        emalign(self.session, ref_map, query_map)
 
     @classmethod
     def get_singleton(self, session, create=True):
@@ -127,6 +206,39 @@ class EMalignDialog(ToolInstance):
         self._status_label.setText(message)
         if log:
             self.session.logger.info(message)
+
+    def _object_chosen(self):
+
+        self._gray_out_options()
+
+    def _gray_out_options(self):
+        # ref_map = self._map_menu.value
+        query_map = self._query_map()
+
+        # ref_map_size = max(ref_map.data.size)
+        v_size = max(query_map.data.size)
+
+        if v_size <= 64:
+            self._no_downsample_frame.setEnabled(True)
+            self._downsample_64_frame.setEnabled(False)
+            self._downsample_128_frame.setEnabled(False)
+            self._downsample_256_frame.setEnabled(False)
+
+        elif 64 < v_size <= 128:
+            self._no_downsample_frame.setEnabled(True)
+            self._downsample_64_frame.setEnabled(True)
+            self._downsample_128_frame.setEnabled(False)
+            self._downsample_256_frame.setEnabled(False)
+        elif 128 < v_size <= 256:
+            self._no_downsample_frame.setEnabled(True)
+            self._downsample_64_frame.setEnabled(True)
+            self._downsample_128_frame.setEnabled(True)
+            self._downsample_256_frame.setEnabled(False)
+        else:
+            self._no_downsample_frame.setEnabled(False)
+            self._downsample_64_frame.setEnabled(True)
+            self._downsample_128_frame.setEnabled(True)
+            self._downsample_256_frame.setEnabled(True)
 
     # @property
     # def _map(self):
