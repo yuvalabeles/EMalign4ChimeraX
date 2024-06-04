@@ -105,8 +105,11 @@ class EMalignDialog(ToolInstance):
         s_256 = EntriesRow(f, False, '256')
 
         self._no_downsample, self._downsample_64, self._downsample_128, self._downsample_256 = s_real.values[0], s_64.values[0], s_128.values[0], s_256.values[0]
+
         radio_buttons(self._no_downsample, self._downsample_64, self._downsample_128, self._downsample_256)
         self._no_downsample_frame, self._downsample_64_frame, self._downsample_128_frame, self._downsample_256_frame = s_real.frame, s_64.frame, s_128.frame, s_256.frame
+
+        self._gray_out_options()
 
         # if v_size <= 64:
         #     self._no_downsample_frame.setEnabled(True)
@@ -130,26 +133,10 @@ class EMalignDialog(ToolInstance):
         #     self._downsample_128_frame.setEnabled(True)
         #     self._downsample_256_frame.setEnabled(True)
 
-        ################################################################################################################
-        # per = EntriesRow(f, 'Projections:', True, 'default', False, '25', False, '50', False, '125')
-        # self._projections_default, self._projections_25, self._projections_50, self._projections_125 = per.values
-        # radio_buttons(self._projections_default, self._projections_25, self._projections_50, self._projections_125)
-        # self._projections_frame = per.frame
-        ################################################################################################################
-
-        # came = EntriesRow(f, False, 'Correlation calculated about mean data value')
-        # self._corr_about_mean = cam = came.values[0]
-        # cam.changed.connect(self._update_metric_values)
-        # self._corr_about_mean_frame = came.frame
-
-        # ar = EntriesRow(f, 'Allow', True, 'rotation', True, 'shift')
-        # self._allow_rotation, self._allow_shift = ar.values
-        #
-        # mwme = EntriesRow(f, True, 'Move whole molecules')
-        # self._move_whole_molecules = mwme.values[0]
-        # self._move_whole_molecules_frame = mwme.frame
-
-        self._gray_out_options()
+        per = EntriesRow(f, 'Projections:', False, '25 (fast)', True, '50 (default)', False, '125 (noisy data)')
+        self._projections_25, self._projections_50, self._projections_125 = per.values
+        radio_buttons(self._projections_25, self._projections_50, self._projections_125)
+        self._projections_frame = per.frame
 
         return p
 
