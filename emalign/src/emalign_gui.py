@@ -17,22 +17,11 @@ class EMalignDialog(ToolInstance):
         mf = self._create_emalign_map_menu(parent)
         layout.addWidget(mf)
 
-        # Make optional arguments fields:
-        # from chimerax.ui.widgets import EntriesRow
-
-        # ds = EntriesRow(parent, 'Downsample', ('default (64)', '32', '64', '128', '256'))
-        # self._downsample_frame = ds.frame
-        # self._downsample = ds.values[0]
-        #
-        # prj = EntriesRow(parent, 'Projections', tuple(['default (30)'] + [str(i*10) for i in range(1, 10)]))
-        # self._projections_frame = prj.frame
-        # self._projections = prj.values[0]
-
         # Align button:
         bf = self._create_action_buttons(parent)
         layout.addWidget(bf)
 
-        # Options panel
+        # Make optional arguments fields:
         options = self._create_options_gui(parent)
         layout.addWidget(options)
 
@@ -58,20 +47,23 @@ class EMalignDialog(ToolInstance):
 
         from chimerax.map import Volume
         from chimerax.ui.widgets import ModelMenuButton
-        self._object_menu = om = ModelMenuButton(self.session, class_filter=Volume)
+        self._query_map_menu = qm = ModelMenuButton(self.session, class_filter=Volume)
         vlist = self.session.models.list(type=Volume)
         if vlist:
-            om.value = vlist[0]
-        om.value_changed.connect(self._object_chosen)
-        mlayout.addWidget(om)
+            qm.value = vlist[0]
+        qm.value_changed.connect(self._object_chosen)
+        mlayout.addWidget(qm)
 
         iml = QLabel('to reference map', mf)
         mlayout.addWidget(iml)
 
-        self._map_menu = mm = ModelMenuButton(self.session, class_filter=Volume)
-        mlayout.addWidget(mm)
+        self._ref_map_menu = rm = ModelMenuButton(self.session, class_filter=Volume)
+        mlayout.addWidget(rm)
         if vlist:
-            mm.value = vlist[-1]
+            rm.value = vlist[-1]
+
+        rm.value_changed.connect(self._object_chosen)
+
         mlayout.addStretch(1)  # Extra space at end
 
         return mf
@@ -84,18 +76,12 @@ class EMalignDialog(ToolInstance):
         return f
 
     def _create_options_gui(self, parent):
-
         from chimerax.ui.widgets import CollapsiblePanel
         self._options_panel = p = CollapsiblePanel(parent, title=None)
         f = p.content_area
+        # self._v_size = None
 
         from chimerax.ui.widgets import EntriesRow, radio_buttons
-
-        # # ref_map = self._map_menu.value
-        # query_map = self._query_map()
-        #
-        # # ref_map_size = max(ref_map.data.size)
-        # v_size = max(query_map.data.size)
 
         # EntriesRow(f, 'Downsample:', True, 'actual size', False, '64', False, '128', False, '256')
         EntriesRow(f, 'Downsample:')
@@ -109,35 +95,24 @@ class EMalignDialog(ToolInstance):
         radio_buttons(self._no_downsample, self._downsample_64, self._downsample_128, self._downsample_256)
         self._no_downsample_frame, self._downsample_64_frame, self._downsample_128_frame, self._downsample_256_frame = s_real.frame, s_64.frame, s_128.frame, s_256.frame
 
-        self._gray_out_options()
-
-        # if v_size <= 64:
-        #     self._no_downsample_frame.setEnabled(True)
-        #     self._downsample_64_frame.setEnabled(False)
-        #     self._downsample_128_frame.setEnabled(False)
-        #     self._downsample_256_frame.setEnabled(False)
-        #
-        # elif 64 < v_size <= 128:
-        #     self._no_downsample_frame.setEnabled(True)
-        #     self._downsample_64_frame.setEnabled(True)
-        #     self._downsample_128_frame.setEnabled(False)
-        #     self._downsample_256_frame.setEnabled(False)
-        # elif 128 < v_size <= 256:
-        #     self._no_downsample_frame.setEnabled(True)
-        #     self._downsample_64_frame.setEnabled(True)
-        #     self._downsample_128_frame.setEnabled(True)
-        #     self._downsample_256_frame.setEnabled(False)
-        # else:
-        #     self._no_downsample_frame.setEnabled(False)
-        #     self._downsample_64_frame.setEnabled(True)
-        #     self._downsample_128_frame.setEnabled(True)
-        #     self._downsample_256_frame.setEnabled(True)
+        from chimerax.map import Volume
+        vlist = self.session.models.list(type=Volume)
+        if vlist:
+            self._update_options()
+        else:
+            self._no_downsample_frame.setEnabled(False)
+            self._downsample_64_frame.setEnabled(False)
+            self._downsample_128_frame.setEnabled(False)
+            self._downsample_256_frame.setEnabled(False)
+        # self._gray_out_downsample_options()
 
         per = EntriesRow(f, 'Projections:', False, '25 (fast)', True, '50 (default)', False, '125 (noisy data)')
         self._projections_25, self._projections_50, self._projections_125 = per.values
         radio_buttons(self._projections_25, self._projections_50, self._projections_125)
         self._projections_frame = per.frame
 
+        if not vlist:
+            self._projections_frame.setEnabled(False)
         return p
 
     def _show_or_hide_options(self):
@@ -145,7 +120,7 @@ class EMalignDialog(ToolInstance):
 
     def _emalign(self):
         query_map = self._query_map()
-        ref_map = self._map_menu.value
+        ref_map = self._ref_map()
 
         if query_map is None:
             self.status('Choose model or map to align.')
@@ -195,17 +170,34 @@ class EMalignDialog(ToolInstance):
             self.session.logger.info(message)
 
     def _object_chosen(self):
+        self._update_options()
 
-        self._gray_out_options()
+    def _update_options(self):
+        self._r_map = rm = self._ref_map()
+        self._q_map = qm = self._query_map()
+        if rm is None or qm is None:
+            return
+        self._assert_equal_size_volumes()
+        self._v_size = max(rm.data.size)
+        self._gray_out_downsample_options()
 
-    def _gray_out_options(self):
+    def _assert_equal_size_volumes(self):
+        if self._r_map.data.size != self._q_map.data.size:
+            self.status('Map size mismatch.')
+            return
+
+    def _gray_out_downsample_options(self):
         # ref_map = self._map_menu.value
-        query_map = self._query_map()
+        # query_map = self._query_map()
 
         # ref_map_size = max(ref_map.data.size)
-        v_size = max(query_map.data.size)
-
-        if v_size <= 64:
+        v_size = self._v_size
+        if v_size is None:
+            self._no_downsample_frame.setEnabled(False)
+            self._downsample_64_frame.setEnabled(False)
+            self._downsample_128_frame.setEnabled(False)
+            self._downsample_256_frame.setEnabled(False)
+        elif v_size <= 64:
             self._no_downsample_frame.setEnabled(True)
             self._downsample_64_frame.setEnabled(False)
             self._downsample_128_frame.setEnabled(False)
@@ -227,13 +219,14 @@ class EMalignDialog(ToolInstance):
             self._downsample_128_frame.setEnabled(True)
             self._downsample_256_frame.setEnabled(True)
 
-    # @property
-    # def _map(self):
-    #     return self._map_menu.value
+    def _ref_map(self):
+        m = self._query_map_menu.value
+        from chimerax.map import Volume
+        return m if isinstance(m, Volume) else None
 
     # The query map chosen to align to the reference map:
     def _query_map(self):
-        m = self._object_menu.value
+        m = self._ref_map_menu.value
         from chimerax.map import Volume
         return m if isinstance(m, Volume) else None
 
