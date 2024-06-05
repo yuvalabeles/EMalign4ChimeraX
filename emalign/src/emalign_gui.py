@@ -85,13 +85,12 @@ class EMalignDialog(ToolInstance):
 
         # EntriesRow(f, 'Downsample:', True, 'actual size', False, '64', False, '128', False, '256')
         EntriesRow(f, 'Downsample:')
-        s_real = EntriesRow(f, True, 'actual size (<64)')
+        s_real = EntriesRow(f, True, 'actual size')
         s_64 = EntriesRow(f, False, '64')
         s_128 = EntriesRow(f, False, '128')
         s_256 = EntriesRow(f, False, '256')
 
         self._no_downsample, self._downsample_64, self._downsample_128, self._downsample_256 = s_real.values[0], s_64.values[0], s_128.values[0], s_256.values[0]
-
         radio_buttons(self._no_downsample, self._downsample_64, self._downsample_128, self._downsample_256)
         self._no_downsample_frame, self._downsample_64_frame, self._downsample_128_frame, self._downsample_256_frame = s_real.frame, s_64.frame, s_128.frame, s_256.frame
 
@@ -113,6 +112,7 @@ class EMalignDialog(ToolInstance):
 
         if not vlist:
             self._projections_frame.setEnabled(False)
+
         return p
 
     def _show_or_hide_options(self):
@@ -123,13 +123,13 @@ class EMalignDialog(ToolInstance):
         ref_map = self._ref_map()
 
         if query_map is None:
-            self.status('Choose model or map to align.')
+            self.status('Choose map to align to the reference map.')
             return
         if ref_map is None:
-            self.status('Choose map to align to.')
+            self.status('Choose map to align the query map to.')
             return
         if query_map == ref_map:
-            self.status('Map to align must be different from map being aligned to.')
+            self.status('The reference map must be different from the query map.')
             return
         # if self._downsample.value == 'default (64)':
         #     ds = 64
@@ -153,11 +153,14 @@ class EMalignDialog(ToolInstance):
         #     self.status('Invalid projections number. Must be at least 1 (default 30).')
         #     return
 
-        self._run_emalign(ref_map, query_map)
+        downsample = self._get_downsample()
+        projections = self._get_projections()
 
-    def _run_emalign(self, ref_map, query_map):
+        self._run_emalign(ref_map, query_map, downsample, projections)
+
+    def _run_emalign(self, ref_map, query_map, downsample, projections):
         from .emalign_cmd import emalign
-        emalign(self.session, ref_map, query_map)
+        emalign(self.session, ref_map, query_map, downsample, projections)
 
     @classmethod
     def get_singleton(self, session, create=True):
@@ -180,6 +183,7 @@ class EMalignDialog(ToolInstance):
         self._assert_equal_size_volumes()
         self._v_size = max(rm.data.size)
         self._gray_out_downsample_options()
+        self._gray_out_projections_options()
 
     def _assert_equal_size_volumes(self):
         if self._r_map.data.size != self._q_map.data.size:
@@ -212,12 +216,15 @@ class EMalignDialog(ToolInstance):
             self._no_downsample_frame.setEnabled(True)
             self._downsample_64_frame.setEnabled(True)
             self._downsample_128_frame.setEnabled(True)
-            self._downsample_256_frame.setEnabled(False)
+            self._downsample_256_frame.setEnabled(True)
         else:
             self._no_downsample_frame.setEnabled(False)
             self._downsample_64_frame.setEnabled(True)
             self._downsample_128_frame.setEnabled(True)
             self._downsample_256_frame.setEnabled(True)
+
+    def _gray_out_projections_options(self):
+        self._projections_frame.setEnabled(True)
 
     def _ref_map(self):
         m = self._query_map_menu.value
@@ -229,6 +236,30 @@ class EMalignDialog(ToolInstance):
         m = self._ref_map_menu.value
         from chimerax.map import Volume
         return m if isinstance(m, Volume) else None
+
+    def _get_downsample(self):
+        downsample = 0
+        if self._no_downsample:
+            downsample = self._v_size
+        if self._downsample_64:
+            downsample = 64
+        if self._downsample_128:
+            downsample = 128
+        if self._downsample_256:
+            downsample = 256
+
+        return downsample
+
+    def _get_projections(self):
+        projections = 0
+        if self._projections_25:
+            projections = 25
+        if self._projections_50:
+            projections = 50
+        if self._projections_125:
+            projections = 125
+
+        return projections
 
 
 # ----------------------------------------------------------------------------------------------------------------------
