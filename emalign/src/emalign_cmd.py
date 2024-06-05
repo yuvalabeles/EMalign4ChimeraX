@@ -28,7 +28,7 @@ def register_emalign_command(logger):
     register('volume emalign', emalign_desc, emalign, logger=logger)
 
 
-def emalign(session, ref_map, query_map, downsample=64, projections=30):
+def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log=True):
     log = session.logger
 
     # Save original parameters of query_map: {origin, step, cell_angles, rotation, symmetries, name}
@@ -91,7 +91,8 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30):
     query_map.replace_data(aligned_map_grid_data)
 
     # fitmap query_map inMap ref_map:
-    log.info("Used fitmap to perform final refinement.")
+    if show_log:
+        log.info("Used fitmap to perform final refinement.")
     fitcmd.fit_map_in_map(query_map, ref_map, metric='correlation', envelope=True, zeros=False, shift=True, rotate=True,
                           move_whole_molecules=True, map_atoms=None, max_steps=2000, grid_step_min=0.01, grid_step_max=0.5)
 
