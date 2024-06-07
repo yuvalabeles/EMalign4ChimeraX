@@ -28,7 +28,7 @@ def register_emalign_command(logger):
     register('volume emalign', emalign_desc, emalign, logger=logger)
 
 
-def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log=True):
+def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log=True, show_param=True):
     log = session.logger
 
     # Save original parameters of query_map: {origin, step, cell_angles, rotation, symmetries, name}
@@ -77,7 +77,8 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
     opt.downsample = downsample
 
     # Run:
-    bestR, bestdx, reflect, vol2aligned, bestcorr = align_volumes_3d.align_volumes(vol1, vol2, opt)
+    bestR, bestdx, reflect, vol2aligned, bestcorr = align_volumes_3d.align_volumes(vol1, vol2, opt, show_log=show_log,
+                                                                                   show_param=show_param, session=session)
 
     # Hide the display of query_map (vol2) prior to the alignment:
     query_map.show(show=False)
@@ -92,9 +93,12 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
 
     # fitmap query_map inMap ref_map:
     if show_log:
-        log.info("Used fitmap to perform final refinement.")
+        log.info("---> Using fitmap to perform final refinement")
     fitcmd.fit_map_in_map(query_map, ref_map, metric='correlation', envelope=True, zeros=False, shift=True, rotate=True,
                           move_whole_molecules=True, map_atoms=None, max_steps=2000, grid_step_min=0.01, grid_step_max=0.5)
 
     # Show the query_map (aligned):
     query_map.show(show=True)
+
+    if show_log:
+        log.info("* Alignment completed *")

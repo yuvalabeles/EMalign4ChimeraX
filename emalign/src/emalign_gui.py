@@ -113,9 +113,14 @@ class EMalignDialog(ToolInstance):
         self._display_log = log.values[0]
         self._display_log_frame = log.frame
 
+        params = EntriesRow(f, True, 'Display output parameters (rotation, translation, correlation)')
+        self._display_parameters = params.values[0]
+        self._display_parameters_frame = params.frame
+
         if not vlist:
             self._projections_frame.setEnabled(False)
             self._display_log_frame.setEnabled(False)
+            self._display_parameters_frame.setEnabled(False)
 
         if vlist:
             self._update_options()
@@ -138,6 +143,7 @@ class EMalignDialog(ToolInstance):
         if query_map == ref_map:
             self.status('The reference map must be different from the query map.')
             return
+
         # if self._downsample.value == 'default (64)':
         #     ds = 64
         # else:
@@ -163,12 +169,13 @@ class EMalignDialog(ToolInstance):
         downsample = self._get_downsample()
         projections = self._get_projections()
         show_log = self._display_log.value
+        show_param = self._display_parameters.value
 
-        self._run_emalign(ref_map, query_map, downsample, projections, show_log)
+        self._run_emalign(ref_map, query_map, downsample, projections, show_log, show_param)
 
-    def _run_emalign(self, ref_map, query_map, downsample, projections, show_log):
+    def _run_emalign(self, ref_map, query_map, downsample, projections, show_log, show_param):
         from .emalign_cmd import emalign
-        emalign(self.session, ref_map, query_map, downsample, projections, show_log)
+        emalign(self.session, ref_map, query_map, downsample, projections, show_log, show_param)
 
     @classmethod
     def get_singleton(self, session, create=True):
@@ -180,12 +187,13 @@ class EMalignDialog(ToolInstance):
         if log:
             self.session.logger.info(message)
 
-    def _message(self, msg):
-        self._status_label.setText(msg)
-        return
+    # def _message(self, msg):
+    #     self._status_label.setText(msg)
+    #     return
 
     def _object_chosen(self):
         self._update_options()
+        self._status_label.setText(' ')
 
     def _update_options(self):
         self._r_map = rm = self._ref_map()
@@ -242,6 +250,7 @@ class EMalignDialog(ToolInstance):
     def _enable_other_options(self):
         self._projections_frame.setEnabled(True)
         self._display_log_frame.setEnabled(True)
+        self._display_parameters_frame.setEnabled(True)
 
     def _ref_map(self):
         m = self._ref_map_menu.value
