@@ -77,7 +77,7 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
     opt.downsample = downsample
 
     # Run:
-    bestR, bestdx, reflect, vol2aligned, bestcorr = align_volumes_3d.align_volumes(vol1, vol2, opt, show_log=show_log,
+    bestR, bestdx, reflect, vol2aligned, bestcorr = align_volumes_3d.align_volumes(vol1, vol2, opt=opt, show_log=show_log,
                                                                                    show_param=show_param, session=session)
 
     # Hide the display of query_map (vol2) prior to the alignment:
