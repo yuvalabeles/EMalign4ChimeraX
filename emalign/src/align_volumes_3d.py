@@ -252,7 +252,7 @@ def evalO(X, R_true, R_est, G):
 
 
 # %%
-def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, session=None):
+def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=True, session=None):
     """
     This function aligns vol2 according to vol1
     Aligning vol2 to vol1 by finding the relative rotation, translation and
@@ -388,12 +388,12 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, session=None):
 
     if n_ds < n:
         if show_log:
-            log.info(f'Downsampling volumes from {n} to {n_ds} pixels')
+            log.info(f'---> Downsampling volumes from {n} to {n_ds} pixels')
         vol1_ds = cryo_downsample(vol1, (n_ds, n_ds, n_ds))
         vol2_ds = cryo_downsample(vol2, (n_ds, n_ds, n_ds))
     else:
         if show_log:
-            log.info(f'No need for downsampling. n={n} n_ds={n_ds}')
+            log.info(f'---> No need for downsampling. n={n} n_ds={n_ds}')
         vol1_ds = vol1
         vol2_ds = vol2
 
@@ -444,9 +444,9 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, session=None):
         vol2 = np.flip(vol2, axis=2)
         reflect = 1
         if show_log:
-            log.info('Input volumes are reflected w.r.t each other')
+            log.info('---> Input volumes are reflected w.r.t each other')
     if show_log:
-        log.info(f'Correlation between downsampled aligned volumes before optimization is {corr_v:.4f}')
+        log.info(f'---> Correlation between downsampled aligned volumes before optimization is {corr_v:.4f}')
 
     logger.debug("R_est=\n%s", str(R_est))
     logger.debug("estdx_ds=%s", str(estdx_ds))
@@ -454,11 +454,12 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, session=None):
 
     if opt.no_refine:
         if show_log:
-            log.info('Skipping refinement of alignment parameters')
+            # log.info('---> Skipping refinement of alignment parameters')
+            pass
         bestR = R_est
     else:
         if show_log:
-            log.info('Using BFGS algorithm to refine alignment parameters')
+            log.info('---> Using BFGS algorithm to refine alignment parameters')
 
         # Optimization:
         # We use the BFGS optimization algorithm in order to refine the resulted
@@ -469,11 +470,11 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, session=None):
 
     logger.debug("bestR=\n%s", str(bestR))
     if show_log:
-        log.info('Done aligning downsampled volumes')
-        log.info('Applying estimated rotation to original volumes')
+        log.info('---> Done aligning downsampled volumes')
+        log.info('---> Applying estimated rotation to original volumes')
     vol2aligned = fastrotate3d.fastrotate3d(vol2, bestR)
     if show_log:
-        log.info('Estimating shift for original volumes')
+        log.info('---> Estimating shift for original volumes')
     bestdx = register_translations_3d(vol1, vol2aligned)
     logger.debug("bestdx=%s", str(bestdx))
     # if np.size(bestdx) != 3 :
@@ -481,15 +482,16 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, session=None):
 
     if not opt.no_refine:
         if show_log:
-            log.info('Refining shift for original volumes')
+            log.info('---> Refining shift for original volumes')
         bestdx = refine3DshiftBFGS(vol1, vol2, bestdx)
         logger.debug("bestdx=%s", str(bestdx))
     else:
         if show_log:
-            log.info('Skipping shift refinement')
+            # log.info('Skipping shift refinement')
+            pass
 
     if show_log:
-        log.info('Translating original volumes')
+        log.info('---> Translating original volumes')
     if (np.round(bestdx) == bestdx).all():
         # Use fast method
         vol2aligned = reshift_vol.reshift_vol_int(vol2aligned, bestdx)
@@ -497,10 +499,10 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, session=None):
         vol2aligned = reshift_vol.reshift_vol(vol2aligned, bestdx)
 
     if show_log:
-        log.info('Computing correlations of original volumes')
+        log.info('---> Computing correlations of original volumes')
     bestcorr = np.mean(np.corrcoef(vol1.ravel(), vol2aligned.ravel(), rowvar=False)[0, 1:])
 
-    if show_log:
+    if show_param:
         log.info('Estimated rotation:\n' + str(bestR))
         log.info(f'Estimated translations: [{bestdx[0]:.3f}, {bestdx[1]:.3f}, {bestdx[2]:.3f}]')
         log.info(f'Correlation between original aligned volumes is {bestcorr:.4f}')
@@ -517,13 +519,13 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, session=None):
         g_est = G[min_idx, :, :]
         err_norm = LA.norm(trueR.T - (g_est @ bestR), ord='fro')
         ref_true_R = trueR.T
-        if show_log:
+        if show_param:
             log.info('Reference rotation:')
             log.info(f'{ref_true_R[0, 0]:.4f} {ref_true_R[0, 1]:.4f} {ref_true_R[0, 2]:.4f}')
             log.info(f'{ref_true_R[1, 0]:.4f} {ref_true_R[1, 1]:.4f} {ref_true_R[1, 2]:.4f}')
             log.info(f'{ref_true_R[2, 0]:.4f} {ref_true_R[2, 1]:.4f} {ref_true_R[2, 2]:.4f}')
         aligned_bestR = g_est @ bestR
-        if show_log:
+        if show_param:
             log.info('Estimated rotation (aligned by a symmetry element according to the reference rotation):')
             log.info(f'{aligned_bestR[0, 0]:.4f} {aligned_bestR[0, 1]:.4f} {aligned_bestR[0, 2]:.4f}')
             log.info(f'{aligned_bestR[1, 0]:.4f} {aligned_bestR[1, 1]:.4f} {aligned_bestR[1, 2]:.4f}')
@@ -539,7 +541,7 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, session=None):
         vec_est = Rotation.as_rotvec(Rotation.from_matrix(g_est @ bestR))
         angle_est = LA.norm(vec_est)
         axis_est = vec_est / angle_est
-        if show_log:
+        if show_param:
             log.info('Rotation axis:')
             log.info(f'Reference [ {axis_ref[0]:.4f}, {axis_ref[1]:.4f}, {axis_ref[2]:.4f}]')
             log.info(f'Estimated [ {axis_est[0]:.4f}, {axis_est[1]:.4f}, {axis_est[2]:.4f}]')
@@ -596,7 +598,7 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, session=None):
         g_est = O @ g @ O.T
         ref_true_R = trueR.T
 
-        if show_log:
+        if show_param:
             log.info('Reference rotation:')
             log.info(f'{ref_true_R[0, 0]:.4f} {ref_true_R[0, 1]:.4f} {ref_true_R[0, 2]:.4f}')
             log.info(f'{ref_true_R[1, 0]:.4f} {ref_true_R[1, 1]:.4f} {ref_true_R[1, 2]:.4f}')
@@ -604,7 +606,7 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, session=None):
 
         aligned_bestR = g_est @ bestR
 
-        if show_log:
+        if show_param:
             log.info('Estimated rotation (aligned by a symmetry element according to the reference rotation):')
             log.info(f'{aligned_bestR[0, 0]:.4f} {aligned_bestR[0, 1]:.4f} {aligned_bestR[0, 2]:.4f}')
             log.info(f'{aligned_bestR[1, 0]:.4f} {aligned_bestR[1, 1]:.4f} {aligned_bestR[1, 2]:.4f}')
@@ -622,7 +624,7 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, session=None):
         angle_est = LA.norm(vec_est)
         axis_est = vec_est / angle_est
 
-        if show_log:
+        if show_param:
             log.info('Rotation axis:')
             log.info(f'Reference [ {axis_ref[0]:.4f}, {axis_ref[1]:.4f}, {axis_ref[2]:.4f}]')
             log.info(f'Estimated [ {axis_est[0]:.4f}, {axis_est[1]:.4f}, {axis_est[2]:.4f}]')
