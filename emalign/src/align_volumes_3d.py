@@ -23,24 +23,23 @@ from . import reshift_vol
 from .SymmetryGroups import genSymGroup
 
 
-def fast_alignment_3d(sym, vol1, vol2, Nprojs=30, trueR=None, G_group=None, refrot=0, verbose=0):
+def fast_alignment_3d(sym, vol1, vol2, Nprojs=30, trueR=None, G_group=None, refrot=0, verbose=0, log=None, show_log=True):
     """
     This function does the work for align_volumes.
+
     Input:
-    sym- the symmetry type- 'Cn'\'Dn'\'T'\'O'\'I', where n is the
-         symmetry order (for example: 'C2').
-    vol1- 3D reference volume that vol2 should be aligned accordingly.
-    vol2- 3D volume to be aligned.
-    verbose - Set verbose to nonzero for verbose printouts (default is zero).
-    Nprojs- number of reference projections for the alignment.
-    trueR- the true rotation matrix between vol2 and vol1.
-    refrot- indicator for true_R. If true_R exist then refrot=1, else
-            refrot=0.
-    G_group- size=(n,3,3) all n symmetry group elemnts.
+    sym - the symmetry type- 'Cn'\'Dn'\'T'\'O'\'I', where n is the symmetry order (for example: 'C2').
+    vol1 - 3D reference volume that vol2 should be aligned accordingly.
+    vol2 - 3D volume to be aligned.
+    verbose - set verbose to nonzero for verbose printouts (default is zero).
+    Nprojs - number of reference projections for the alignment.
+    trueR - the true rotation matrix between vol2 and vol1.
+    refrot - indicator for true_R. If true_R exist then refrot=1, else refrot=0.
+    G_group - size=(n,3,3) all n symmetry group elemnts.
 
     output:
     Rest - the estimated rotation between vol_2 and vol_1 without reflection.
-    Rest_J- the estimated rotation between vol_2 and vol_1 with reflection.
+    Rest_J - the estimated rotation between vol_2 and vol_1 with reflection.
     """
     # logging.basicConfig(level=logging.DEBUG,
     #                    format='%(asctime)s %(levelname)s %(message)s')
@@ -49,7 +48,8 @@ def fast_alignment_3d(sym, vol1, vol2, Nprojs=30, trueR=None, G_group=None, refr
         logger.disabled = True
 
     # Generate reference projections from vol2:
-    logger.info('Generating %i reference projections.', Nprojs)
+    if show_log:
+        log.info(f'---> Generating {Nprojs} reference projections')
     Rots = genRotationsGrid(75)
     sz_Rots = np.size(Rots, 2)
     R_ref = Rots[:, :, np.random.randint(sz_Rots, size=Nprojs)]  # size (3,3,N_projs)
@@ -71,7 +71,8 @@ def fast_alignment_3d(sym, vol1, vol2, Nprojs=30, trueR=None, G_group=None, refr
     opt.G = G_group
     opt.Rots = Rots
     opt.sym = sym
-    logger.info('Aligning reference projections of vol2 to vol1.')
+    if show_log:
+        log.info('---> Aligning reference projections of query map to reference map')
     if refrot == 1:
         R = trueR
         R = R.T
@@ -345,7 +346,7 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
     if hasattr(opt, 'downsample'):
         downsample = opt.downsample
     else:
-        downsample = 64
+        downsample = None
 
     if session is not None:
         log = session.logger
@@ -382,7 +383,10 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
     assert n_2[0] == n_1[1] and n_2[0] == n_1[1], "All dimensions of input volumes must be equal"
     assert n_1[0] == n_2[0], "Input volumes have different dimensions"
     n = n_1[0]
-    n_ds = min(n, downsample)  # Perform aligment on down sampled volumes.
+    if downsample is None:  # Perform aligment on down sampled volumes.
+        n_ds = n
+    else:
+        n_ds = min(n, downsample)
     # This speeds up calculation, and does not seem
     # to degrade accuracy
 
@@ -402,7 +406,7 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
         G_c = np.copy(G)
     else:
         G_c = None
-    R_est, R_est_J = fast_alignment_3d(sym, vol1_ds.copy(), vol2_ds.copy(), Nprojs, trueR, G_c, refrot, verbose)
+    R_est, R_est_J = fast_alignment_3d(sym, vol1_ds.copy(), vol2_ds.copy(), Nprojs, trueR, G_c, refrot, verbose, log, show_log)
 
     logger.debug("R_est=\n%s", str(R_est))
     logger.debug("R_est_J=\n%s", str(R_est_J))
