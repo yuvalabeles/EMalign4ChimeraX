@@ -59,7 +59,7 @@ class EMalignDialog(ToolInstance):
         self._ref_map_menu = rm = ModelMenuButton(self.session, class_filter=Volume)
         mlayout.addWidget(rm)
         if vlist:
-            rm.value = vlist[-1]
+            rm.value = vlist[0]
 
         rm.value_changed.connect(self._object_chosen)
 

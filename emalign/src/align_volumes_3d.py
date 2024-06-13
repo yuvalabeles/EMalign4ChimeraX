@@ -8,7 +8,7 @@ Created on Sun Feb 28 20:06:16 2021
 import math
 import logging
 import numpy as np
-from numpy import linalg as LA
+from numpy import linalg as la
 from scipy.optimize import minimize
 from scipy.spatial.transform import Rotation
 from .common_finufft import cryo_downsample
@@ -17,7 +17,7 @@ from .genRotationsGrid import genRotationsGrid
 from .align_projection_2d import align_projection
 from .fastrotate3d import fastrotate3d
 from . import fastrotate3d
-from .register_translations_3d import register_translations_3d, refine3DshiftBFGS
+from .register_translations_3d import register_translations_3d
 from .reshift_vol import reshift_vol
 from . import reshift_vol
 from .SymmetryGroups import genSymGroup
@@ -131,12 +131,12 @@ def fast_alignment_3d(sym, vol1, vol2, Nprojs=30, trueR=None, G_group=None, refr
     # X_ij=v*v.', and Xij*v=N_projs*v. Thus, v is an eigenvector of Xij. The
     # matrix Xij should be of rank 3. find the top 3 eigenvectors:
     # without reflection:
-    s, U = LA.eigh(X_ij)  # s = np.diag(s);
+    s, U = la.eigh(X_ij)  # s = np.diag(s);
     ii = np.argsort(s, axis=0)[::-1]  # s = np.sort(s,axis=0)[::-1]
     U = U[:, ii]
     V = U[:, 0:3]
     # With reflection:
-    sJ, UJ = LA.eigh(X_ij_J)  # sJ = np.diag(sJ);
+    sJ, UJ = la.eigh(X_ij_J)  # sJ = np.diag(sJ);
     iiJ = np.argsort(sJ, axis=0)[::-1]  # sJ = np.sort(sJ,axis=0)[::-1];
     UJ = UJ[:, iiJ]
     VJ = UJ[:, 0:3]
@@ -149,13 +149,13 @@ def fast_alignment_3d(sym, vol1, vol2, Nprojs=30, trueR=None, G_group=None, refr
     G_J = np.zeros((Nprojs, 3, 3))
     for i in range(Nprojs):
         B = V[3 * i:3 * (i + 1), :]
-        u_tmp, _, v_tmp = LA.svd(B)
-        B_round = LA.det(u_tmp @ v_tmp) * (u_tmp @ v_tmp)
+        u_tmp, _, v_tmp = la.svd(B)
+        B_round = la.det(u_tmp @ v_tmp) * (u_tmp @ v_tmp)
         G[i, :, :] = B_round.T
         # reflected case:
         BJ = VJ[3 * i:3 * (i + 1), :]
-        uJ_tmp, _, vJ_tmp = LA.svd(BJ)
-        BJ_round = LA.det(uJ_tmp @ vJ_tmp) * (uJ_tmp @ vJ_tmp)
+        uJ_tmp, _, vJ_tmp = la.svd(BJ)
+        BJ_round = la.det(uJ_tmp @ vJ_tmp) * (uJ_tmp @ vJ_tmp)
         G_J[i, :, :] = BJ_round.T
     # Set the global rotation to be an element from the symmetry group:
     # The global rotation from the synchronization can be any rotation matrix
@@ -178,16 +178,16 @@ def fast_alignment_3d(sym, vol1, vol2, Nprojs=30, trueR=None, G_group=None, refr
     X_J = np.mean(X_mat_J, axis=2)
     # Without reflection:
     R = X
-    U, _, V = LA.svd(R)  # Project R to the nearest rotation.
+    U, _, V = la.svd(R)  # Project R to the nearest rotation.
     R_est = U @ V
-    assert LA.det(R_est) > 0
+    assert la.det(R_est) > 0
     R_est = R_est[:, [1, 0, 2]][[1, 0, 2]]
     R_est = R_est.T
     # reflected case:
     R_J = X_J
-    U, _, V = LA.svd(R_J)  # Project R to the nearest rotation.
+    U, _, V = la.svd(R_J)  # Project R to the nearest rotation.
     R_est_J = U @ V
-    assert LA.det(R_est_J) > 0
+    assert la.det(R_est_J) > 0
     R_est_J = R_est_J[:, [1, 0, 2]][[1, 0, 2]]
     R_est_J = R_est_J.T
 
@@ -242,12 +242,12 @@ def evalO(X, R_true, R_est, G):
     psi = X[0]
     theta = X[1]
     phi = X[2]
-    O = Rotation.as_matrix(Rotation.from_euler('xyz', [psi, theta, phi], degrees=False))
+    O_mat = Rotation.as_matrix(Rotation.from_euler('xyz', [psi, theta, phi], degrees=False))
     n = np.size(G, 0)
     dist = np.zeros((1, n))
     for i in range(n):
         g = G[i, :, :]
-        dist[0, i] = LA.norm(R_true - O @ g @ O.T @ R_est, 'fro')
+        dist[0, i] = la.norm(R_true - O_mat @ g @ O_mat.T @ R_est, 'fro')
     err = np.min(dist)
     return err
 
@@ -484,15 +484,15 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
     # if np.size(bestdx) != 3 :
     #    raise Warning("***** Translation estimation failed *****")
 
-    if not opt.no_refine:
-        if show_log:
-            log.info('---> Refining shift for original volumes')
-        bestdx = refine3DshiftBFGS(vol1, vol2, bestdx)
-        logger.debug("bestdx=%s", str(bestdx))
-    else:
-        if show_log:
-            # log.info('Skipping shift refinement')
-            pass
+    # if not opt.no_refine:
+    #     if show_log:
+    #         log.info('---> Refining shift for original volumes')
+    #     bestdx = refine3DshiftBFGS(vol1, vol2, bestdx)
+    #     logger.debug("bestdx=%s", str(bestdx))
+    # else:
+    #     if show_log:
+    #         # log.info('Skipping shift refinement')
+    #         pass
 
     if show_log:
         log.info('---> Translating original volumes')
@@ -518,10 +518,10 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
         g_est_t = trueR.T @ bestR.T
         dist = np.zeros(n_g)
         for g_idx in range(n_g):
-            dist[g_idx] = LA.norm(g_est_t - G[g_idx, :, :], ord='fro')
+            dist[g_idx] = la.norm(g_est_t - G[g_idx, :, :], ord='fro')
         min_idx = np.argmin(dist)
         g_est = G[min_idx, :, :]
-        err_norm = LA.norm(trueR.T - (g_est @ bestR), ord='fro')
+        err_norm = la.norm(trueR.T - (g_est @ bestR), ord='fro')
         ref_true_R = trueR.T
         if show_param:
             log.info('Reference rotation:')
@@ -540,10 +540,10 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
             log.info(f'{g_est[2, 0]:.4f} {g_est[2, 1]:.4f} {g_est[2, 2]:.4f}')
             log.info(f'Estimation error (Frobenius norm) up to symmetry group element is {err_norm:.4f}')
         vec_ref = Rotation.as_rotvec(Rotation.from_matrix(trueR.T))
-        angle_ref = LA.norm(vec_ref)
+        angle_ref = la.norm(vec_ref)
         axis_ref = vec_ref / angle_ref
         vec_est = Rotation.as_rotvec(Rotation.from_matrix(g_est @ bestR))
-        angle_est = LA.norm(vec_est)
+        angle_est = la.norm(vec_est)
         axis_est = vec_est / angle_est
         if show_param:
             log.info('Rotation axis:')
@@ -575,14 +575,14 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
         dist = np.zeros((n, n_g))
         for i in range(n):
             for j in range(n_g):
-                O = Rots[:, :, i]
+                O_mat = Rots[:, :, i]
                 g = G[j, :, :]
-                dist[i, j] = LA.norm(trueR.T - (O @ g @ O.T @ bestR), ord='fro')
+                dist[i, j] = la.norm(trueR.T - (O_mat @ g @ O_mat.T @ bestR), ord='fro')
         err = np.min(dist.ravel())
         row = np.array(np.where(dist == err))[0]
-        O = Rots[:, :, row[0]]
+        O_mat = Rots[:, :, row[0]]
         # BFGS optimization:
-        [psi, theta, phi] = (Rotation.from_matrix(O)).as_euler('xyz')
+        [psi, theta, phi] = (Rotation.from_matrix(O_mat)).as_euler('xyz')
         X0 = np.array([psi, theta, phi]).astype('float64')
         res = minimize(evalO, X0, args=(trueR.T, bestR, G), method='BFGS', tol=1e-4,
                        options={'gtol': 1e-4, 'disp': False})
@@ -590,16 +590,16 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
         psi = X[0]
         theta = X[1]
         phi = X[2]
-        O = Rotation.as_matrix(Rotation.from_euler('xyz', [psi, theta, phi], degrees=False))
+        O_mat = Rotation.as_matrix(Rotation.from_euler('xyz', [psi, theta, phi], degrees=False))
         n_g = np.size(G, 0)
         dist = np.zeros((1, n_g))
         for i in range(n_g):
             g = G[i, :, :]
-            dist[0, i] = LA.norm(trueR.T - (O @ g @ O.T @ bestR), 'fro')
+            dist[0, i] = la.norm(trueR.T - (O_mat @ g @ O_mat.T @ bestR), 'fro')
         err_norm = np.min(dist)
         idx = np.array(np.where(dist == err_norm))
         g = G[idx[1, 0], :, :]
-        g_est = O @ g @ O.T
+        g_est = O_mat @ g @ O_mat.T
         ref_true_R = trueR.T
 
         if show_param:
@@ -622,10 +622,10 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
             log.info(f'Estimation error (Frobenius norm) up to symmetry group element is {err_norm:.4f}')
 
         vec_ref = Rotation.as_rotvec(Rotation.from_matrix(trueR.T))
-        angle_ref = LA.norm(vec_ref)
+        angle_ref = la.norm(vec_ref)
         axis_ref = vec_ref / angle_ref
         vec_est = Rotation.as_rotvec(Rotation.from_matrix(g_est @ bestR))
-        angle_est = LA.norm(vec_est)
+        angle_est = la.norm(vec_est)
         axis_est = vec_est / angle_est
 
         if show_param:
