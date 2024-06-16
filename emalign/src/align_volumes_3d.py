@@ -88,24 +88,21 @@ def fast_alignment_3d(sym, vol1, vol2, Nprojs=30, trueR=None, G_group=None, refr
         R_tild = align_projection(ref_projs, vol1, verbose, opt)  # size=(3,3,N_projs).
     else:
         R_tild = align_projection(ref_projs, vol1, verbose, opt)  # size (3,3,N_projs).
+
     # Synchronization:
-    # A synchronization algorithm is used In order to revel the symmetry
-    # elements of the reference projections. The relation between the volumes
-    # is V2(r)=V1(Or). Denote the rotation between the volumes as X.
-    # 1. In the case there is no reflection between the volumes, the rotation
-    #    Ri_tilde estimates giORi, therefore the approximation is O =
-    #    gi.'Ri_tildeRi.', where g_i is the symmetry group element of reference
-    #    image i. If we define Xi=Ri*Ri_tilde.' then we get Xi.'*Xj=g_i*g_j.'.
-    # 2. In the case there is a reflection between the volumes, the rotation
-    #    Ri_tilde estimates qiJXRiJ, where O=JX. We have that qiJ=Jqi_tilde,
-    #    therefore the approximation is X=qi_tilde.'JRi_tildeJRi.', where
-    #    qi_tilde is a symmetry element in the symmetry group of
-    #    V1_tilde(r)=V1(Jr). If we define  Xi=Ri*(J*Ri_tild*J).', then we also
-    #    get Xi.'*Xj=qi_tilde*qj_tilde.'.
-    # Therefore, we can construct the synchronization matrix Xij=Xi.'*Xj for
-    # both cases. Then, estimate the group elemnts for each image with and
-    # whitout reflection, and latter choose the option that best describes the
-    # relation between the two volumes.
+    # A synchronization algorithm is used In order to revel the symmetry elements of the reference projections.
+    # The relation between the volumes is V2(r)=V1(Or). Denote the rotation between the volumes as X.
+    # 1. In the case there is no reflection between the volumes, the rotation Ri_tilde estimates giORi,
+    #    therefore the approximation is O = gi.
+    #    'Ri_tildeRi.', where g_i is the symmetry group element of reference image i.
+    #    If we define Xi=Ri*Ri_tilde.' then we get Xi.'*Xj=g_i*g_j.'.
+    # 2. In the case there is a reflection between the volumes, the rotation Ri_tilde estimates qiJXRiJ, where O=JX.
+    #    We have that qiJ=Jqi_tilde, therefore the approximation is X=qi_tilde.
+    #    'JRi_tildeJRi.', where qi_tilde is a symmetry element in the symmetry group of V1_tilde(r)=V1(Jr).
+    #    If we define  Xi=Ri*(J*Ri_tild*J).', then we also get Xi.'*Xj=qi_tilde*qj_tilde.'.
+    # Therefore, we can construct the synchronization matrix Xij=Xi.'*Xj for both cases.
+    # Then, estimate the group elemnts for each image with and without reflection, and latter choose the option that
+    # best describes the relation between the two volumes.
 
     # Estimate X with or without reflection:
     R_tild = R_tild[0]
@@ -122,14 +119,15 @@ def fast_alignment_3d(sym, vol1, vol2, Nprojs=30, trueR=None, G_group=None, refr
         for j in range(i + 1, Nprojs):
             X_ij[3 * i:3 * (i + 1), 3 * j:3 * (j + 1)] = X_mat[:, :, i].T @ X_mat[:, :, j]
             X_ij_J[3 * i:3 * (i + 1), 3 * j:3 * (j + 1)] = X_mat_J[:, :, i].T @ X_mat_J[:, :, j]
+
     # Enforce symmetry:
     X_ij = X_ij + X_ij.T
     X_ij = X_ij + np.eye(np.size(X_ij, 0))
     X_ij_J = X_ij_J + X_ij_J.T
     X_ij_J = X_ij_J + np.eye(np.size(X_ij_J, 0))
-    # Define v=[g_1.',..., g_N_projs.'].' (v is of size 3*N_projx3), then
-    # X_ij=v*v.', and Xij*v=N_projs*v. Thus, v is an eigenvector of Xij. The
-    # matrix Xij should be of rank 3. find the top 3 eigenvectors:
+
+    # Define v=[g_1.',..., g_N_projs.'].' (v is of size 3*N_projx3), then X_ij=v*v.', and Xij*v=N_projs*v.
+    # Thus, v is an eigenvector of Xij. The matrix Xij should be of rank 3. find the top 3 eigenvectors:
     # without reflection:
     s, U = la.eigh(X_ij)  # s = np.diag(s);
     ii = np.argsort(s, axis=0)[::-1]  # s = np.sort(s,axis=0)[::-1]
@@ -141,10 +139,9 @@ def fast_alignment_3d(sym, vol1, vol2, Nprojs=30, trueR=None, G_group=None, refr
     UJ = UJ[:, iiJ]
     VJ = UJ[:, 0:3]
     # estimating G:
-    # Estimate the group elemnts for each reference image. G denotes the
-    # estimated group without reflection, and G_J with reflection. This
-    # estimation is being done from the eigenvector v by using a rounding
-    # algorithm over SO(3) for each 3x3 block of v.
+    # Estimate the group elemnts for each reference image.
+    # G denotes the estimated group without reflection, and G_J with reflection. This estimation is being done from
+    # the eigenvector v by using a rounding algorithm over SO(3) for each 3x3 block of v.
     G = np.zeros((Nprojs, 3, 3))
     G_J = np.zeros((Nprojs, 3, 3))
     for i in range(Nprojs):
@@ -157,11 +154,11 @@ def fast_alignment_3d(sym, vol1, vol2, Nprojs=30, trueR=None, G_group=None, refr
         uJ_tmp, _, vJ_tmp = la.svd(BJ)
         BJ_round = la.det(uJ_tmp @ vJ_tmp) * (uJ_tmp @ vJ_tmp)
         G_J[i, :, :] = BJ_round.T
+
     # Set the global rotation to be an element from the symmetry group:
-    # The global rotation from the synchronization can be any rotation matrix
-    # from SO(3). So, in order to get the estimated symmetry elements to be
-    # from the symmetry group we set the global rotation to be also an element
-    # from the symmetry group.
+    # The global rotation from the synchronization can be any rotation matrix from SO(3).
+    # So, in order to get the estimated symmetry elements to be from the symmetry group we set the global rotation
+    # to be also an element from the symmetry group.
     O1 = G[0, :, :].T
     O1_J = G_J[0, :, :].T
     G_est = np.zeros((Nprojs, 3, 3))
@@ -169,7 +166,7 @@ def fast_alignment_3d(sym, vol1, vol2, Nprojs=30, trueR=None, G_group=None, refr
     for i in range(Nprojs):
         G_est[i, :, :] = O1 @ G[i, :, :]
         G_J_est[i, :, :] = O1_J @ G_J[i, :, :]
-        # Estimating the rotation:
+    # Estimating the rotation:
     # Estimate the two candidate orthogonal transformations.
     for i in range(Nprojs):
         X_mat[:, :, i] = X_mat[:, :, i] @ G_est[i, :, :].T
@@ -197,47 +194,6 @@ def fast_alignment_3d(sym, vol1, vol2, Nprojs=30, trueR=None, G_group=None, refr
 
 
 # %%
-# def eval3Dmatchaux(X, vol1, vol2, rotate_fftw_data=None,
-#                    reshift_fftw_data=None):
-#     psi = X[0]
-#     theta = X[1]
-#     phi = X[2]
-#     dx = X[3]
-#     dy = X[4]
-#     dz = X[5]
-#     r = Rotation.from_euler('xyz', [psi, theta, phi], degrees=False)
-#     Rot = r.as_matrix()
-#
-#     vol2_r = fastrotate3d(vol2, Rot)
-#
-#     vol2_rs = reshift_vol(vol2_r, np.array([dx, dy, dz]), reshift_fftw_data)
-#     c = np.mean(np.corrcoef(vol1.ravel(), vol2_rs.ravel(), rowvar=False)[0, 1:]).astype('float64')
-#     e = (1 - c).astype('float64')
-#     return e
-
-
-# %%
-# def refine3DmatchBFGS(vol1, vol2, R1, estdx):
-#     # Create initial guess vector
-#     R1 = Rotation.from_matrix(R1)
-#     [psi, theta, phi] = R1.as_euler('xyz')
-#     X0 = np.array([psi, theta, phi, estdx[0], estdx[1], estdx[2]]).astype('float64')
-#     rotate_fftw_data = fastrotate3d.fftw_data_class(vol1)
-#     reshift_fftw_data = reshift_vol.fft_data_class(vol1)
-#     # BFGS optimization:
-#     res = minimize(eval3Dmatchaux, X0, args=(vol1, vol2, rotate_fftw_data,
-#                                              reshift_fftw_data), method='BFGS', tol=1e-3,
-#                    options={'gtol': 1e-1, 'disp': False})
-#     X = res.x
-#     psi = X[0]
-#     theta = X[1]
-#     phi = X[2]
-#     Rest = Rotation.from_euler('xyz', [psi, theta, phi], degrees=False)
-#     # estdx = np.array([X[3], X[4], X[5]])
-#     return Rest
-
-
-# %%
 def evalO(X, R_true, R_est, G):
     psi = X[0]
     theta = X[1]
@@ -255,53 +211,43 @@ def evalO(X, R_true, R_est, G):
 # %%
 def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=True, session=None):
     """
-    This function aligns vol2 according to vol1
-    Aligning vol2 to vol1 by finding the relative rotation, translation and
-    reflection between vol1 and vol2, such that vol2 is best aligned with
-    vol1.
+    This function aligns vol2 according to vol1.
+    Aligning vol2 to vol1 by finding the relative rotation, translation and reflection between vol1 and vol2,
+    such that vol2 is best aligned with vol1.
     How to align the two volumes:
-        The user should align vol2 according to vol1 using the parameters bestR,
-        bestdx and reflect. If reflect=0 then there is no reflection between the
-        volumes. In that case the user should first rotate vol2 by bestR and then
-        reshift by bestdx. If reflect=1, then there is a reflection between the
-        volumes. In that case the user should first reflcet vol2 about the z axis
-        using the flip function, then rotate the volume by bestR and finally
-        reshift by bestdx.
+        The user should align vol2 according to vol1 using the parameters bestR, bestdx and reflect.
+        If reflect=0 then there is no reflection between the volumes.
+        In that case the user should first rotate vol2 by bestR and then reshift by bestdx.
+        If reflect=1, then there is a reflection between the volumes.
+        In that case the user should first reflcet vol2 about the z axis using the flip function,
+        then rotate the volume by bestR and finally reshift by bestdx.
     Input:
         vol1- 3D reference volume that vol2 should be aligned accordingly.
         vol2- 3D volume to be aligned.
         verbose - Set verbose to nonzero for verbose printouts (default is zero).
     Output:
-        bestR- the estimated rotation between vol2 and vol1, such that bestR*vol2
-               will align vol2 to vol1.
-        bestdx- size=3x1. the estimated translation between vol2 and vol1.
-        reflect - indicator for reflection. If reflect=1 then there is a
-                 reflection between vol1 and vol2, else reflect=0. In order to
-                 align the volumes in the case of reflect=1, the user should
-                 first reflect vol2 about the z axis, and then rotate by bestR.
-        vol2aligned- vol2 after applyng the estimated transformation, so it is
-                     best aligned with vol1 (after optimization).
-        bestcorr- the coorelation between vol1 and vol2aligned.
+        bestR - the estimated rotation between vol2 and vol1, such that bestR*vol2 will align vol2 to vol1.
+        bestdx - size=3x1. the estimated translation between vol2 and vol1.
+        reflect - indicator for reflection.
+                  If reflect=1 then there is a reflection between vol1 and vol2, else reflect=0.
+                  In order to align the volumes in the case of reflect=1, the user should first reflect vol2 about
+                  the z axis, and then rotate by bestR.
+        vol2aligned - vol2 after applying the est. transformation, so it's best aligned with vol1 (after optimization).
+        bestcorr - the coorelation between vol1 and vol2aligned.
     Options:
-        sym- the symmetry type- 'Cn'\'Dn'\'T'\'O'\'I', where n is the
-             symmetry order (for example: 'C2'). This input is required only for
-             the error calculation.
-        opt.downsample-  Downsample the volume to this size (in pixels) for
-                         faster alignment. Default is 48. Use larger value if
-                         alignment fails.
-        opt.Nprojs- Number of projections to use for the alignment.
-                     Defult is 30.
-        opt.trueR-  True rotation matrix between vol2 and vol1, such that
-                vol2 = fastrotate3d(vol1,true_R). In the case of reflection,
-                true_R should be the rotation between the volumes such that
-                vol2 = flip(fastrotate3d(vol1,true_R),3). In this case
-                O = J*true_R, where J is the reflection matrix over the z axis
-                J=diag([1,1,-1]). This input is used for debugging to calculate
-                errors.
-        opt.G- Array of matrices of size 3x3xn containing the symmetry group
-               elemnts of vol1. This input is for accurate error calculation. If
-               G is not submitted then the error will be calculated by
-               optimization over the symmetry group.
+        sym - the symmetry type- 'Cn'\'Dn'\'T'\'O'\'I', where n is the symmetry order (for example: 'C2').
+              This input is required only for the error calculation.
+        opt.downsample - Downsample the volume to this size (in pixels) for faster alignment. Default is 64.
+                         Use larger value if alignment fails.
+        opt.Nprojs - Number of projections to use for the alignment. Defult is 30.
+        opt.trueR -  True rotation matrix between vol2 and vol1, such that vol2 = fastrotate3d(vol1,true_R).
+                     In the case of reflection, true_R should be the rotation between the volumes such that
+                     vol2 = flip(fastrotate3d(vol1,true_R),3).
+                     In this case O = J*true_R, where J is the reflection matrix over the z axis J=diag([1,1,-1]).
+                     This input is used for debugging to calculate errors.
+        opt.G - Array of matrices of size 3x3xn containing the symmetry group elemnts of vol1.
+                This input is for accurate error calculation. If G is not submitted then the error will be calculated by
+                optimization over the symmetry group.
     """
 
     logger = logging.getLogger()
@@ -372,23 +318,24 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
 
     # Validate input:
     # Input volumes must be 3-dimensional, where all dimensions must be equal.
-    # This restriction can be removed, but then, the calculation of nr (radial
-    # resolution in the Fourier domain) should be adjusted accordingly. Both
-    # vol_1 and vol_2 must have the same dimensions.
+    # This restriction can be removed, but then, the calculation of nr (radial resolution in the Fourier domain)
+    # should be adjusted accordingly. Both vol_1 and vol_2 must have the same dimensions.
+
     n_1 = np.shape(vol1)
     assert np.size(n_1) == 3, "Inputs must be 3D"
     assert n_1[0] == n_1[1], "All dimensions of input volumes must be equal"
+
     n_2 = np.shape(vol2)
     assert np.size(n_2) == 3, "Inputs must be 3D"
     assert n_2[0] == n_1[1] and n_2[0] == n_1[1], "All dimensions of input volumes must be equal"
     assert n_1[0] == n_2[0], "Input volumes have different dimensions"
+
     n = n_1[0]
     if downsample is None:  # Perform aligment on down sampled volumes.
         n_ds = n
     else:
         n_ds = min(n, downsample)
-    # This speeds up calculation, and does not seem
-    # to degrade accuracy
+    # This speeds up calculation, and does not seem to degrade accuracy
 
     if n_ds < n:
         if show_log:
@@ -423,7 +370,7 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
     if np.size(estdx_ds) != 3 or np.size(estdx_J_ds) != 3:
         raise Warning("***** Translation estimation failed *****")
 
-    # Prepare FFTW data to avoid unnecessary calaculations
+    # Prepare FFTW data to avoid unnecessary calaculations:
     vol2_aligned_ds = reshift_vol.reshift_vol_int(vol2_aligned_ds, estdx_ds)
     vol2_aligned_J_ds = reshift_vol.reshift_vol_int(vol2_aligned_J_ds, estdx_J_ds)
 
@@ -436,6 +383,7 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
     #     # smaller than 0.1, that is, no transformation was recovered.
     #     raise Warning("***** Alignment failed *****")
     # Do we have reflection?
+
     reflect = 0
     corr_v = no1
     if no2 > no1:
@@ -456,21 +404,23 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
     logger.debug("estdx_ds=%s", str(estdx_ds))
     logger.debug("reflect=%d", reflect)
 
-    if opt.no_refine:
-        if show_log:
-            # log.info('---> Skipping refinement of alignment parameters')
-            pass
-        bestR = R_est
-    else:
-        if show_log:
-            log.info('---> Using BFGS algorithm to refine alignment parameters')
+    # if opt.no_refine:
+    #     if show_log:
+    #         log.info('---> Skipping refinement of alignment parameters')
+    #         pass
+    #     bestR = R_est
+    # else:
+    #     if show_log:
+    #         log.info('---> Using BFGS algorithm to refine alignment parameters')
+    #
+    #     # Optimization:
+    #     # We use the BFGS optimization algorithm in order to refine the resulted
+    #     # transformation between the two volumes.
+    #     # bestR = refine3DmatchBFGS(vol1_ds.copy(), vol2_ds.copy(), R_est, estdx_ds)
+    #     # bestR = Rotation.as_matrix(bestR)
 
-        # Optimization:
-        # We use the BFGS optimization algorithm in order to refine the resulted
-        # transformation between the two volumes.
-        # bestR = refine3DmatchBFGS(vol1_ds.copy(), vol2_ds.copy(), R_est, estdx_ds)
-        # bestR = Rotation.as_matrix(bestR)
-        bestR = R_est
+    # Refinement option is disabled, therefore:
+    bestR = R_est
 
     logger.debug("bestR=\n%s", str(bestR))
     if show_log:
@@ -481,6 +431,7 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
         log.info('---> Estimating shift for original volumes')
     bestdx = register_translations_3d(vol1, vol2aligned)
     logger.debug("bestdx=%s", str(bestdx))
+
     # if np.size(bestdx) != 3 :
     #    raise Warning("***** Translation estimation failed *****")
 
@@ -497,7 +448,7 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
     if show_log:
         log.info('---> Translating original volumes')
     if (np.round(bestdx) == bestdx).all():
-        # Use fast method
+        # Use fast method:
         vol2aligned = reshift_vol.reshift_vol_int(vol2aligned, bestdx)
     else:
         vol2aligned = reshift_vol.reshift_vol(vol2aligned, bestdx)
@@ -510,6 +461,7 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
         log.info('Estimated rotation:\n' + str(bestR))
         log.info(f'Estimated translations: [{bestdx[0]:.3f}, {bestdx[1]:.3f}, {bestdx[2]:.3f}]')
         log.info(f'Correlation between original aligned volumes is {bestcorr:.4f}')
+
     # Accurate error calculation:
     # The difference between the estimated and reference rotation should be an
     # element from the symmetry group:
@@ -556,15 +508,13 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
             log.info(f'Angle difference is {abs(math.degrees(angle_ref) - math.degrees(angle_est)):.4f} degrees')
 
     # Error calculation by optimization:
-    # The difference between the estimated and reference rotation should be an
-    # element from the symmetry group. In the case the symmetry group of vol1
-    # is not given, it can be estimated using optimization process.
-    # Let G be the symmetry group of the symmetry type of the molecule in the
-    # canonical coordinate system (G is obtained using genSymgroup). Then, the
-    # symmetry group of vol1 is given by O*G*O., where O is the orthogonal
-    # transformation between the coordinate system of vol1 and the canonical
-    # one. Therefore, the symmetry group can be estimated by evaluating O using
-    # optimization algorithm.
+    # The difference between the estimated and reference rotation should be an element from the symmetry group.
+    # In the case the symmetry group of vol1 is not given, it can be estimated using optimization process.
+    # Let G be the symmetry group of the symmetry type of the molecule in the canonical coordinate system
+    # (G is obtained using genSymgroup).
+    # Then, the symmetry group of vol1 is given by O*G*O., where O is the orthogonal transformation between
+    # the coordinate system of vol1 and the canonical one.
+    # Therefore, the symmetry group can be estimated by evaluating O using optimization algorithm.
 
     if refrot == 1 and G_flag == 0 and sym_flag == 1:
         # Creating initial guess by brute-force algorithm:

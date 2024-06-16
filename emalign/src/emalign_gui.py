@@ -78,7 +78,7 @@ class EMalignDialog(ToolInstance):
         f = p.content_area
 
         EntriesRow(f, 'Downsample:')
-        s_real = EntriesRow(f, True, 'actual size')
+        s_real = EntriesRow(f, True, 'None (use actual size)')
         s_64 = EntriesRow(f, False, '64')
         s_128 = EntriesRow(f, False, '128')
         s_256 = EntriesRow(f, False, '256')
@@ -96,7 +96,7 @@ class EMalignDialog(ToolInstance):
             self._downsample_128_frame.setEnabled(False)
             self._downsample_256_frame.setEnabled(False)
 
-        per = EntriesRow(f, 'Projections:', False, '25 (fast)', True, '50 (default)', False, '125 (noisy data)')
+        per = EntriesRow(f, 'Projections:', False, '25 (fast)', True, '50 (default)', False, '125 (for noisier data)')
         self._projections_25, self._projections_50, self._projections_125 = per.values
         radio_buttons(self._projections_25, self._projections_50, self._projections_125)
         self._projections_frame = per.frame
