@@ -154,7 +154,7 @@ class EMalignDialog(ToolInstance):
         self._run_emalign(ref_map, query_map, downsample, projections, show_log, show_param)
 
     def _run_emalign(self, ref_map, query_map, downsample, projections, show_log, show_param):
-        emalign(self.session, ref_map, query_map, downsample=downsample, projections=projections, show_log=show_log, show_param=show_param)
+        emalign(self.session, ref_map, query_map, downsample=downsample, projections=projections, show_log=show_log, show_param=show_param, refine=False)
         if self._use_fit_map.value:
             # fitmap query_map inMap ref_map:
             fitcmd.fit_map_in_map(query_map, ref_map, metric='correlation', envelope=True, zeros=False, shift=True, rotate=True,
