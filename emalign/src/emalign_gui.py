@@ -1,5 +1,6 @@
 from chimerax.core import tools
 from chimerax.core.tools import ToolInstance
+from chimerax.map_fit import fitcmd
 from chimerax.ui import MainToolWindow
 from chimerax.ui.widgets import vertical_layout, button_row, ModelMenuButton, CollapsiblePanel, EntriesRow, radio_buttons
 from Qt.QtWidgets import QFrame, QHBoxLayout, QLabel
@@ -10,7 +11,6 @@ from .emalign_cmd import emalign
 class EMalignDialog(ToolInstance):
     def __init__(self, session, tool_name):
         ToolInstance.__init__(self, session, tool_name)
-
         tw = MainToolWindow(self)
         self.tool_window = tw
         parent = tw.ui_area
@@ -77,7 +77,7 @@ class EMalignDialog(ToolInstance):
         self._options_panel = p = CollapsiblePanel(parent, title=None)
         f = p.content_area
 
-        EntriesRow(f, 'Downsample:')
+        header_dns = EntriesRow(f, 'Downsample:')
         s_real = EntriesRow(f, True, 'None (use actual size)')
         s_64 = EntriesRow(f, False, '64')
         s_128 = EntriesRow(f, False, '128')
@@ -87,21 +87,29 @@ class EMalignDialog(ToolInstance):
         radio_buttons(self._no_downsample, self._downsample_64, self._downsample_128, self._downsample_256)
         self._ds_frames = s_real.frame, s_64.frame, s_128.frame, s_256.frame
         self._no_downsample_frame, self._downsample_64_frame, self._downsample_128_frame, self._downsample_256_frame = self._ds_frames
+        self._downsample_header_frame = header_dns.frame
 
         vlist = self.session.models.list(type=Volume)
 
         if not vlist:
+            self._downsample_header_frame.setEnabled(False)
             self._no_downsample_frame.setEnabled(False)
             self._downsample_64_frame.setEnabled(False)
             self._downsample_128_frame.setEnabled(False)
             self._downsample_256_frame.setEnabled(False)
 
-        per = EntriesRow(f, 'Projections:', False, '25 (fast)', True, '50 (default)', False, '125 (for noisier data)')
+        header_proj = EntriesRow(f, 'Projections:')
+        per = EntriesRow(f, False, '25 (fast)', True, '50 (default)', False, '125 (for noisier data)')
         self._projections_25, self._projections_50, self._projections_125 = per.values
         radio_buttons(self._projections_25, self._projections_50, self._projections_125)
         self._projections_frame = per.frame
+        self.header_proj_frame = header_proj.frame
 
-        log = EntriesRow(f, True, 'Display detailed log')
+        use_fit_map = EntriesRow(f, True, 'Use Fit in Map to perform additional refinement (recommended)')
+        self._use_fit_map = use_fit_map.values[0]
+        self._use_fit_map_frame = use_fit_map.frame
+
+        log = EntriesRow(f, False, 'Display detailed log')
         self._display_log = log.values[0]
         self._display_log_frame = log.frame
 
@@ -110,9 +118,11 @@ class EMalignDialog(ToolInstance):
         self._display_parameters_frame = params.frame
 
         if not vlist:
+            self.header_proj_frame.setEnabled(False)
             self._projections_frame.setEnabled(False)
             self._display_log_frame.setEnabled(False)
             self._display_parameters_frame.setEnabled(False)
+            self._use_fit_map_frame.setEnabled(False)
 
         if vlist:
             self._update_options()
@@ -145,6 +155,10 @@ class EMalignDialog(ToolInstance):
 
     def _run_emalign(self, ref_map, query_map, downsample, projections, show_log, show_param):
         emalign(self.session, ref_map, query_map, downsample=downsample, projections=projections, show_log=show_log, show_param=show_param)
+        if self._use_fit_map.value:
+            # fitmap query_map inMap ref_map:
+            fitcmd.fit_map_in_map(query_map, ref_map, metric='correlation', envelope=True, zeros=False, shift=True, rotate=True,
+                                  move_whole_molecules=True, map_atoms=None, max_steps=2000, grid_step_min=0.01, grid_step_max=0.5)
 
     @classmethod
     def get_singleton(self, session, create=True):
@@ -193,7 +207,7 @@ class EMalignDialog(ToolInstance):
             self._ds_frames[i].setEnabled(ds_values[i])
 
     def _enable_other_options(self):
-        options = [self._projections_frame, self._display_log_frame, self._display_parameters_frame]
+        options = [self._projections_frame, self._display_log_frame, self._display_parameters_frame, self._use_fit_map_frame, self._downsample_header_frame, self.header_proj_frame]
         for option in options:
             option.setEnabled(True)
 

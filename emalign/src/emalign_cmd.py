@@ -1,4 +1,4 @@
-from chimerax.map_fit import fitcmd
+# from chimerax.map_fit import fitcmd
 from chimerax.map_data import arraygrid
 import numpy as np
 from chimerax.core.errors import UserError
@@ -91,11 +91,11 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
     # Replace the data in the original query_map:
     query_map.replace_data(aligned_map_grid_data)
 
-    # fitmap query_map inMap ref_map:
-    if show_log:
-        log.info("---> Using fitmap to perform final refinement")
-    fitcmd.fit_map_in_map(query_map, ref_map, metric='correlation', envelope=True, zeros=False, shift=True, rotate=True,
-                          move_whole_molecules=True, map_atoms=None, max_steps=2000, grid_step_min=0.01, grid_step_max=0.5)
+    # # fitmap query_map inMap ref_map:
+    # if show_log:
+    #     log.info("---> Using fitmap to perform final refinement")
+    # fitcmd.fit_map_in_map(query_map, ref_map, metric='correlation', envelope=True, zeros=False, shift=True, rotate=True,
+    #                       move_whole_molecules=True, map_atoms=None, max_steps=2000, grid_step_min=0.01, grid_step_max=0.5)
 
     # Show the query_map (aligned):
     query_map.show(show=True)
