@@ -29,6 +29,10 @@ class EMalignDialog(ToolInstance):
         options = self._create_options_gui(parent)
         layout.addWidget(options)
 
+        # Make actions guide:
+        guide = self._create_guide(parent)
+        layout.addWidget(guide)
+
         # Status line:
         self._status_label = sl = QLabel(parent)
         layout.addWidget(sl)
@@ -69,9 +73,28 @@ class EMalignDialog(ToolInstance):
 
     def _create_action_buttons(self, parent):
         f, buttons = button_row(parent, [('align', self._emalign),
-                                         ('Options', self._show_or_hide_options)], spacing=10, button_list=True)
+                                         ('options', self._show_or_hide_options),
+                                         ('help', self._show_or_hide_guide)], spacing=10, button_list=True)
 
         return f
+
+    def _create_guide(self, parent):
+        self._guide_panel = g = CollapsiblePanel(parent, title=None)
+        f = g.content_area
+        space = EntriesRow(f, ' ')
+        downsample_guide = EntriesRow(f, 'Downsample: ***** enter tooltip here ***** ')
+        projection_guide = EntriesRow(f, 'Projections: ***** enter tooltip here ***** ')
+        note = EntriesRow(f, '* Note: aligning may take a few minutes, don\'t click the screen while EMalign is running.')
+
+        self.downsample_guide_frame = downsample_guide.frame
+        self.projection_guide_frame = projection_guide.frame
+        self.space_frame = space.frame
+        self.note_frame = note.frame
+
+        return g
+
+    def _show_or_hide_guide(self):
+        self._guide_panel.toggle_panel_display()
 
     def _create_options_gui(self, parent):
         self._options_panel = p = CollapsiblePanel(parent, title=None)
