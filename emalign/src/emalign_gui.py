@@ -82,9 +82,9 @@ class EMalignDialog(ToolInstance):
         self._guide_panel = g = CollapsiblePanel(parent, title=None)
         f = g.content_area
         space = EntriesRow(f, ' ')
-        downsample_guide = EntriesRow(f, 'Downsample: ***** enter tooltip here ***** ')
-        projection_guide = EntriesRow(f, 'Projections: ***** enter tooltip here ***** ')
-        note = EntriesRow(f, '* Note: aligning may take a few minutes, don\'t click the screen while EMalign is running.')
+        downsample_guide = EntriesRow(f, 'Downsample - dimension to downsample input volumes to speed up computations. ')
+        projection_guide = EntriesRow(f, 'Projections - number of projections to use for alignment. ')
+        note = EntriesRow(f, '* the alignment may take a few minutes, don\'t click the screen while EMalign is running.')
 
         self.downsample_guide_frame = downsample_guide.frame
         self.projection_guide_frame = projection_guide.frame
