@@ -3,6 +3,7 @@ from chimerax.map_data import arraygrid
 import numpy as np
 from chimerax.core.errors import UserError
 from . import align_volumes_3d
+from .common_finufft import cryo_downsample
 
 
 def register_emalign_command(logger):
@@ -34,7 +35,7 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
     # Save original parameters of query_map: {origin, step, cell_angles, rotation, symmetries, name}
     grid_query_map_data = query_map.data
     query_map_origin = grid_query_map_data.origin
-    query_map_step = grid_query_map_data.step
+    query_map_step = grid_query_map_data.step  # this is the voxel size
     query_map_cell_angles = grid_query_map_data.cell_angles
     query_map_rotation = grid_query_map_data.rotation
     query_map_symmetries = grid_query_map_data.symmetries
@@ -66,8 +67,36 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
             and (vol2.shape[0] % 2 == 0)):
         raise UserError("All three dimensions of input volumes must be equal and even")
 
-    if vol1.shape[0] != vol2.shape[0]:
-        raise UserError("Input volumes must be of same dimensions")
+    n_1 = np.shape(vol1)
+    n_2 = np.shape(vol2)
+
+    if n_1[0] != n_2[0]:
+        vol1_voxel = ref_map.data.step[0]
+        vol1_pixel = n_1[0]
+        vol1_dim = vol1_voxel * vol1_pixel
+
+        vol2_voxel = query_map_step[0]
+        vol2_pixel = n_2[0]
+        vol2_dim = vol2_voxel * vol2_pixel
+
+        numerator = abs(vol1_dim - vol2_dim)
+        if vol1_pixel > vol2_pixel:
+            denominator = vol1_pixel * vol2_voxel
+        else:
+            denominator = vol2_pixel * vol1_voxel
+        dif = numerator / denominator
+
+        if dif < 0.05:
+            n_ds = min(vol1_pixel, vol2_pixel)
+            if show_log:
+                log.info(f'---> Downsampling higher volume to {n_ds} pixels')
+            vol1 = cryo_downsample(vol1, (n_ds, n_ds, n_ds))
+            vol2 = cryo_downsample(vol2, (n_ds, n_ds, n_ds))
+        else:
+            raise UserError("Input volumes must be of same dimensions")
+
+    # if vol1.shape[0] != vol2.shape[0]:
+    #     raise UserError("Input volumes must be of same dimensions")
 
     class Struct:
         pass

@@ -17,6 +17,8 @@ class EMalignDialog(ToolInstance):
 
         layout = vertical_layout(parent, margins=(5, 0, 0, 0))
 
+        self.log = session.logger
+
         # Make menus to choose maps for alignment:
         mf = self._create_emalign_map_menu(parent)
         layout.addWidget(mf)
@@ -180,6 +182,7 @@ class EMalignDialog(ToolInstance):
         emalign(self.session, ref_map, query_map, downsample=downsample, projections=projections, show_log=show_log, show_param=show_param, refine=False)
         if self._use_fit_map.value:
             # fitmap query_map inMap ref_map:
+            self.log.info('Used Fit Map to perform additional refinement.')
             fitcmd.fit_map_in_map(query_map, ref_map, metric='correlation', envelope=True, zeros=False, shift=True, rotate=True,
                                   move_whole_molecules=True, map_atoms=None, max_steps=2000, grid_step_min=0.01, grid_step_max=0.5)
 

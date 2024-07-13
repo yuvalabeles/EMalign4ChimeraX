@@ -322,12 +322,12 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
     # should be adjusted accordingly. Both vol_1 and vol_2 must have the same dimensions.
 
     n_1 = np.shape(vol1)
-    assert np.size(n_1) == 3, "Inputs must be 3D"
-    assert n_1[0] == n_1[1], "All dimensions of input volumes must be equal"
-
     n_2 = np.shape(vol2)
-    assert np.size(n_2) == 3, "Inputs must be 3D"
-    assert n_2[0] == n_1[1] and n_2[0] == n_1[1], "All dimensions of input volumes must be equal"
+
+    assert np.size(n_1) == 3 and np.size(n_2) == 3, "Inputs must be 3D"
+    assert n_1[0] == n_1[1] == n_1[2], "All dimensions of input volumes must be equal"
+    assert n_2[0] == n_2[1] == n_2[2], "All dimensions of input volumes must be equal"
+
     assert n_1[0] == n_2[0], "Input volumes have different dimensions"
 
     n = n_1[0]
