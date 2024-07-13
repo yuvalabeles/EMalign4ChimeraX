@@ -50,20 +50,20 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
     if (vol1.ndim == 4) and (vol1.shape[-1] == 1):
         vol1 = np.squeeze(vol1)
     elif vol1.ndim != 3:
-        raise UserError("Volumes must be three-dimensional or fourdimensional with singleton first dimension ")
+        raise UserError("Volumes must be three-dimensional or four-dimensional with singleton first dimension ")
 
     # Handle the case where vol2 is 4D:
     if (vol2.ndim == 4) and (vol2.shape[-1] == 1):
         vol2 = np.squeeze(vol2)
     elif vol2.ndim != 3:
-        raise UserError("Volumes must be three-dimensional or fourdimensional with singleton first dimension ")
+        raise UserError("Volumes must be three-dimensional or four-dimensional with singleton first dimension ")
 
     if not ((vol1.shape[1] == vol1.shape[0]) and (vol1.shape[2] == vol1.shape[0])
             and (vol1.shape[0] % 2 == 0)):
         raise UserError("All three dimensions of input volumes must be equal and even")
 
-    if not ((vol1.shape[1] == vol1.shape[0]) and (vol1.shape[2] == vol1.shape[0])
-            and (vol1.shape[0] % 2 == 0)):
+    if not ((vol2.shape[1] == vol2.shape[0]) and (vol2.shape[2] == vol2.shape[0])
+            and (vol2.shape[0] % 2 == 0)):
         raise UserError("All three dimensions of input volumes must be equal and even")
 
     if vol1.shape[0] != vol2.shape[0]:
