@@ -204,8 +204,9 @@ class EMalignDialog(ToolInstance):
         self._q_map = qm = self._query_map()
         if rm is None or qm is None:
             return
-        self._assert_equal_size_volumes()
-        self._v_size = rm.data.size[0]
+        # self._assert_equal_size_volumes()
+        self._r_size = rm.data.size[0]
+        self._q_size = qm.data.size[0]
         self._gray_out_downsample_options()
         self._enable_other_options()
 
@@ -215,7 +216,8 @@ class EMalignDialog(ToolInstance):
             return
 
     def _gray_out_downsample_options(self):
-        v_size = self._v_size
+        v_size = min(self._r_size, self._q_size)
+
         if v_size < 64:
             ds_values = [True, False, False, False]
         elif 64 <= v_size <= 128:
@@ -228,6 +230,9 @@ class EMalignDialog(ToolInstance):
             ds_values = [False, True, True, True]
             self._no_downsample.value = False
             self._downsample_64.value = True
+
+        if self._r_size != self._q_size:
+            ds_values[0] = False
 
         for i in range(len(self._ds_frames)):
             self._ds_frames[i].setEnabled(ds_values[i])
