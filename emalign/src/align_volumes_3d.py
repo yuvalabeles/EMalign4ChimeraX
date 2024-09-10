@@ -6,6 +6,8 @@ Created on Sun Feb 28 20:06:16 2021
 @author: yaelharpaz1
 """
 import logging
+# import random
+
 import numpy as np
 from numpy import linalg as la
 from scipy.spatial.transform import Rotation
@@ -18,6 +20,8 @@ from . import fastrotate3d
 from .register_translations_3d import register_translations_3d
 from .reshift_vol import reshift_vol
 from . import reshift_vol
+
+# np.random.seed(10)
 
 
 def fast_alignment_3d(vol1, vol2, Nprojs=30, verbose=0, log=None, show_log=True):
@@ -34,6 +38,7 @@ def fast_alignment_3d(vol1, vol2, Nprojs=30, verbose=0, log=None, show_log=True)
     Rest - the estimated rotation between vol_2 and vol_1 without reflection.
     Rest_J - the estimated rotation between vol_2 and vol_1 with reflection.
     """
+    # np.random.seed(1)
 
     logger = logging.getLogger()
     if verbose == 0:
@@ -44,11 +49,19 @@ def fast_alignment_3d(vol1, vol2, Nprojs=30, verbose=0, log=None, show_log=True)
         log.info(f'---> Generating {Nprojs} reference projections')
     Rots = genRotationsGrid(75)
     sz_Rots = np.size(Rots, 2)
-    R_ref = Rots[:, :, np.random.randint(sz_Rots, size=Nprojs)]  # size (3,3,N_projs)
+    rots_z = np.random.randint(sz_Rots, size=Nprojs)
+
+    # rots_z = np.array([10398, 3521, 8847, 2453, 2060, 12926, 5752, 2003, 13819, 9481, 2796, 13563, 6517, 12998, 7628,
+    #                    806, 3366, 8271, 11801, 1831, 9333, 1372, 4976, 9121, 312])
+    # log.info(f'---> random ints from \n{sz_Rots}\n to \n{rots_z}\n')
+
+    R_ref = Rots[:, :, rots_z]  # size (3,3,N_projs)
     # R_ref = mat_to_npy('R_ref_for_fastAlignment3D')
     ref_projs = cryo_project(vol2, R_ref)
     ref_projs = np.transpose(ref_projs, (1, 0, 2))
     R_ref = np.transpose(R_ref, (1, 0, 2))  # the true rotations.
+    # log.info(f'ref_projs:\n{ref_projs}')
+    # log.info(f'R_ref:\n{R_ref}')
 
     # Align reference projections to vol1:
     class Struct:
@@ -59,7 +72,7 @@ def fast_alignment_3d(vol1, vol2, Nprojs=30, verbose=0, log=None, show_log=True)
 
     opt = Struct()
     opt.Nprojs = Nprojs
-    opt.Rots = Rots
+    # opt.Rots = Rots
 
     print_to_log(log, "---> Aligning reference projections of query map to reference map", show_log)
 
@@ -244,16 +257,8 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
 
     if hasattr(opt, 'align'):
         align_in_place = opt.align[0]
-        vol2_original = opt.align[1]
-        # N_query_ds = opt.align[2]
-        # crop_out_3d = opt.align[3]
-        # N_ref = opt.align[4]
     else:
         align_in_place = True
-        vol2_original = None
-        # N_query_ds = None
-        # crop_out_3d = None
-        # N_ref = None
 
     # Validate input:
     # Input volumes must be 3-dimensional, where all dimensions must be equal.
@@ -341,15 +346,7 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
 
     print_to_log(log, "---> Done aligning downsampled volumes\n---> Applying estimated rotation to volumes", show_log)
 
-    if vol2_original is None:
-        vol2aligned = fastrotate3d.fastrotate3d(vol2, bestR)
-    else:
-        vol2aligned = fastrotate3d.fastrotate3d(vol2, bestR)
-
-        # vol2aligned = fastrotate3d.fastrotate3d(vol2_original, bestR)
-        # query_vol_ds = cryo_downsample(vol2aligned, (N_query_ds, N_query_ds, N_query_ds))
-        # query_vol_cropped = cryo_crop(query_vol_ds, crop_out_3d)
-        # vol2aligned = query_vol_cropped
+    vol2aligned = fastrotate3d.fastrotate3d(vol2, bestR)
 
     print_to_log(log, "---> Estimating shift for volumes", show_log)
 

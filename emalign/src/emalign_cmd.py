@@ -6,7 +6,8 @@ import numpy as np
 from chimerax.core.errors import UserError
 from . import align_volumes_3d, reshift_vol, fastrotate3d
 from .common_finufft import cryo_downsample, cryo_crop
-# import mrcfile
+# from . import read_write as mrc
+import mrcfile
 
 
 def register_emalign_command(logger):
@@ -48,8 +49,8 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
         ref_dict[keys[i]] = ref_map_values[i]
         query_dict[keys[i]] = query_map_values[i]
 
-    grid_ref_map = ref_map.full_matrix().T
-    grid_query_map = query_map.full_matrix().T
+    grid_ref_map = ref_map.full_matrix()
+    grid_query_map = query_map.full_matrix()
 
     ref_vol = np.ascontiguousarray(grid_ref_map)
     query_vol = np.ascontiguousarray(grid_query_map)
@@ -72,89 +73,91 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
     pixel_query = query_dict.get("step")[0]
 
     if pixel_query > pixel_ref:
+        # Create a copy of the ref_vol to run on:
+        ref_vol_copy = ref_vol.copy()
+
         # query_vol has the bigger pixel size ---> downsample ref_vol to N_ref_ds and then crop it to N_query:
         N_ref_ds = math.floor(N_ref * (pixel_ref / pixel_query))
 
-        # now we downsample ref_vol from N_ref to N_ref_ds:
-        print_to_log(log, f"size to downsample reference map to = {N_ref_ds}")
-        ref_vol_ds = cryo_downsample(ref_vol, (N_ref_ds, N_ref_ds, N_ref_ds))
-        crop_out_3d = (N_query, N_query, N_query)
-        ref_vol_cropped = cryo_crop(ref_vol_ds, crop_out_3d)
-        print_to_log(log, f"shape of ref_vol_cropped: {ref_vol_cropped.shape}")
+        # Now we downsample ref_vol from N_ref to N_ref_ds:
+        print_to_log(log, f"size to downsample reference map to = {N_ref_ds}", show_log=show_log)
+        ref_vol_ds = cryo_downsample(ref_vol_copy, (N_ref_ds, N_ref_ds, N_ref_ds))
+        ref_vol_cropped = cryo_crop(ref_vol_ds.copy(), (N_query, N_query, N_query))
+        print_to_log(log, f"shape of ref_vol_cropped: {ref_vol_cropped.shape}", show_log=show_log)
 
-        cropped_ref_map_grid_data = arraygrid.ArrayGridData(ref_vol_cropped.T, origin=ref_dict.get("origin"),
-                                                            step=query_dict.get("step"),
-                                                            cell_angles=ref_dict.get("cell_angles"),
-                                                            rotation=ref_dict.get("rotation"),
-                                                            symmetries=ref_dict.get("symmetries"),
-                                                            name=ref_dict.get("name"))
-
-        # Replace the data in the original query_map:
-        ref_map.replace_data(cropped_ref_map_grid_data)
-
-        grid_ref_map = ref_map.full_matrix().T
-        ref_vol = np.ascontiguousarray(grid_ref_map)
+        opt.align = [False]
 
         # At this point both volumes are the same dimension
-        bestR, bestdx, reflect, query_vol_aligned = align_volumes_3d.align_volumes(ref_vol, query_vol,
+        bestR, bestdx, reflect, query_vol_aligned = align_volumes_3d.align_volumes(ref_vol_cropped, query_vol,
                                                                                    opt=opt,
                                                                                    show_log=show_log,
                                                                                    show_param=show_param,
                                                                                    session=session)
-    elif pixel_ref > pixel_query:
-        # ref_vol has the bigger pixel size ---> downsample query_vol to N_query_ds and then crop it to N_ref:
+
+        # print_to_log(log, "---> Aligning original volumes", show_log)
+        #
+        # # Rotate the volumes:
+        # query_vol_aligned = fastrotate3d.fastrotate3d(query_vol, bestR)
+        #
+        # # Translate the volumes:
+        # bestdx = (pixel_query / pixel_ref) * bestdx
+        # if (np.round(bestdx) == bestdx).all():
+        #     # Use fast method:
+        #     query_vol_aligned = reshift_vol.reshift_vol_int(query_vol_aligned, bestdx)
+        # else:
+        #     query_vol_aligned = reshift_vol.reshift_vol(query_vol_aligned, bestdx)
+        #
+        # # print_to_log(log, '---> Computing correlations of original volumes', show_log)
+        # # bestcorr = np.mean(np.corrcoef(ref_vol.ravel(), query_vol_aligned.ravel(), rowvar=False)[0, 1:])
+        #
+        # query_vol_aligned = query_vol_aligned.astype(np.float32)
+
+        print_param(log, bestR, bestdx, show_param)
+
+        query_vol_aligned = query_vol
+
+    elif pixel_ref > pixel_query:  # ref_vol has the bigger pixel size and the smaller volume size
+        # Create a copy of the query_vol to run align_volumes on:
+        query_vol_copy = query_vol.copy()
+
         N_query_ds = math.floor(N_query * (pixel_query / pixel_ref))
+        print_to_log(log, f"size to downsample query map to = {N_query_ds}", show_log=show_log)
 
-        # Now we downsample query_vol from N_query to N_query_ds and crop to get the same dimensions:
-        print_to_log(log, f"size to downsample query map to = {N_query_ds}")
-        query_vol_ds = cryo_downsample(query_vol, (N_query_ds, N_query_ds, N_query_ds))
-        crop_out_3d = (N_ref, N_ref, N_ref)
-        query_vol_cropped = cryo_crop(query_vol_ds, crop_out_3d)
-        print_to_log(log, f"shape of query_vol_cropped: {query_vol_cropped.shape}")
+        # Now we downsample the copy of query_vol from N_query to N_query_ds and crop to get the same dimensions:
+        query_vol_copy_ds = cryo_downsample(query_vol_copy, (N_query_ds, N_query_ds, N_query_ds))
+        query_vol_copy_cropped = cryo_crop(query_vol_copy_ds.copy(), (N_ref, N_ref, N_ref))
+        print_to_log(log, f"shape of query_vol_cropped: {query_vol_copy_cropped.shape}", show_log=show_log)
+        query_vol_copy_cropped = np.ascontiguousarray(query_vol_copy_cropped)
 
-        # query_dict["step"] = ref_dict.get("step")
+        opt.align = [False]
 
-        # Create GridData object with the cropped query_vol:
-        cropped_map_grid_data = arraygrid.ArrayGridData(query_vol_cropped, origin=query_dict.get("origin"),
-                                                        step=ref_dict.get("step"),
-                                                        cell_angles=query_dict.get("cell_angles"),
-                                                        rotation=query_dict.get("rotation"),
-                                                        symmetries=query_dict.get("symmetries"),
-                                                        name=query_dict.get("name"))
-
-        # Replace the data in the query_map:
-        query_map.replace_data(cropped_map_grid_data)
-        grid_query_map_cropped = query_map.full_matrix()
-        query_vol_cropped = np.ascontiguousarray(grid_query_map_cropped)
-
-        opt.align = [False, query_vol, N_query_ds, crop_out_3d, N_ref]
-        # query_vol_cropped = query_vol_cropped.T
-
-        bestR, bestdx, reflect, vol_aligned = align_volumes_3d.align_volumes(ref_vol, query_vol_cropped,
+        bestR, bestdx, reflect, vol_aligned = align_volumes_3d.align_volumes(ref_vol, query_vol_copy_cropped,
                                                                              opt=opt,
                                                                              show_log=show_log,
                                                                              show_param=show_param,
                                                                              session=session)
 
-        print_to_log(log, "---> Aligning original volumes (in emalign_cmd.py)", show_log)
+        # print_to_log(log, "---> Aligning original volumes", show_log)
+        #
+        # # Rotate the volumes:
+        # query_vol_aligned = fastrotate3d.fastrotate3d(query_vol, bestR)
+        #
+        # # Translate the volumes:
+        # bestdx = (pixel_ref / pixel_query) * bestdx
+        # if (np.round(bestdx) == bestdx).all():
+        #     # Use fast method:
+        #     query_vol_aligned = reshift_vol.reshift_vol_int(query_vol_aligned, bestdx)
+        # else:
+        #     query_vol_aligned = reshift_vol.reshift_vol(query_vol_aligned, bestdx)
+        #
+        # # print_to_log(log, '---> Computing correlations of original volumes', show_log)
+        # # bestcorr = np.mean(np.corrcoef(ref_vol.ravel(), query_vol_aligned.ravel(), rowvar=False)[0, 1:])
+        #
+        # query_vol_aligned = query_vol_aligned.astype(np.float32)
 
-        # Rotate the volumes:
-        query_vol_aligned = fastrotate3d.fastrotate3d(query_vol, bestR)
-
-        # Translate the volumes:
-        bestdx = (pixel_ref / pixel_query) * bestdx
-        if (np.round(bestdx) == bestdx).all():
-            # Use fast method:
-            query_vol_aligned = reshift_vol.reshift_vol_int(query_vol_aligned, bestdx)
-        else:
-            query_vol_aligned = reshift_vol.reshift_vol(query_vol_aligned, bestdx)
-
-        # print_to_log(log, '---> Computing correlations of original volumes', show_log)
-        # bestcorr = np.mean(np.corrcoef(ref_vol.ravel(), query_vol_aligned.ravel(), rowvar=False)[0, 1:])
         print_param(log, bestR, bestdx, show_param)
 
-        query_vol_aligned = query_vol_aligned.astype(np.float32)
-        query_vol_aligned = query_vol_aligned.T
+        query_vol_aligned = query_vol
     else:
         # pixel_ref == pixel_query ---> no need to downsample anything
         bestR, bestdx, reflect, query_vol_aligned = align_volumes_3d.align_volumes(ref_vol, query_vol,
@@ -162,11 +165,6 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
                                                                                    show_log=show_log,
                                                                                    show_param=show_param,
                                                                                    session=session)
-        query_vol_aligned = query_vol_aligned.T
-        # query_vol_aligned = query_vol
-
-    # # Hide the display of query_map (query_vol) prior to the alignment:
-    # query_map.show(show=False)
 
     # Create GridData object with aligned query_vol but with the original query_map parameters:
     aligned_map_grid_data = arraygrid.ArrayGridData(query_vol_aligned, origin=query_dict.get("origin"),
@@ -181,14 +179,11 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
 
     # fitmap query_map inMap ref_map:
     if refine:
-        print_to_log(log, "---> Using fitmap to perform final refinement")
+        print_to_log(log, "---> Using fitmap to perform final refinement", show_log=show_log)
         fitcmd.fit_map_in_map(query_map, ref_map, metric="correlation", envelope=True, zeros=False, shift=True,
                               rotate=True,
                               move_whole_molecules=True, map_atoms=None, max_steps=2000, grid_step_min=0.01,
                               grid_step_max=0.5)
-
-    # # Show the query_map (aligned):
-    # query_map.show(show=True)
 
     print_to_log(log, "---> Done", show_log)
 
