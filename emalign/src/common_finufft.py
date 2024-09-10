@@ -54,6 +54,7 @@ def cryo_crop(x, out_shape):
         the center of x in dimension i. If the value of n_i <= 0 or >= N_i then the dimension is left as is.
     :return: out: The center of x with size outshape.
     """
+    x = x.copy()
     in_shape = np.array(x.shape)
     out_shape = np.array([s if 0 < s < in_shape[i] else in_shape[i] for i, s in enumerate(out_shape)])
     start_indices = in_shape // 2 - out_shape // 2

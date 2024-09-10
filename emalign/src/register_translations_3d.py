@@ -82,8 +82,10 @@ def register_translations_3d(vol1, vol2):
 
     tmp1 = hats1 * np.conj(hats2)
     tmp2 = abs(tmp1)
+
     bool_idx = tmp2 < 2 * np.finfo(vol1.dtype).eps
     tmp2[bool_idx] = 1  # Avoid division by zero.
+
     # The numerator for these indices is small anyway.
     rhat = tmp1 / tmp2
 
