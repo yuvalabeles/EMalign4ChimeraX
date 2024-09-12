@@ -8,7 +8,7 @@ Created on Tue Jan 11 12:55:48 2022
 import shutil
 import numpy as np
 import mrcfile
-from read_write import read_mrc
+from emalign.read_write import read_mrc
 from rand_rots import rand_rots
 from src.fastrotate3d import fastrotate3d
 from src.reshift_vol import reshift_vol_int
@@ -53,6 +53,6 @@ def save_transform_map(transform_vol, map_id):
 
 if __name__ == '__main__':
     map_IDs = ["16880", "16902", "16905", "16908", "19195", "19197", "19198", "35413", "35414"]
-    for map_ID in map_IDs:
-        print("Map: " + map_ID)
-        transform_map(map_ID)
+    # for map_ID in map_IDs:
+    #     print("Map: " + map_ID)
+    #     transform_map(map_ID)
