@@ -1,6 +1,6 @@
 from chimerax.core import tools
 from chimerax.core.tools import ToolInstance
-from chimerax.map_fit import fitcmd
+# from chimerax.map_fit import fitcmd
 from chimerax.ui import MainToolWindow
 from chimerax.ui.widgets import vertical_layout, button_row, ModelMenuButton, CollapsiblePanel, EntriesRow, radio_buttons
 from Qt.QtWidgets import QFrame, QHBoxLayout, QLabel
@@ -138,15 +138,15 @@ class EMalignDialog(ToolInstance):
         self._display_log = log.values[0]
         self._display_log_frame = log.frame
 
-        params = EntriesRow(f, True, 'Display output parameters (rotation, translation, correlation)')
-        self._display_parameters = params.values[0]
-        self._display_parameters_frame = params.frame
+        # params = EntriesRow(f, True, 'Display output parameters (rotation, translation, correlation)')
+        # self._display_parameters = params.values[0]
+        # self._display_parameters_frame = params.frame
 
         if not vlist:
             self.header_proj_frame.setEnabled(False)
             self._projections_frame.setEnabled(False)
             self._display_log_frame.setEnabled(False)
-            self._display_parameters_frame.setEnabled(False)
+            # self._display_parameters_frame.setEnabled(False)
             self._use_fit_map_frame.setEnabled(False)
 
         if vlist:
@@ -174,17 +174,12 @@ class EMalignDialog(ToolInstance):
         downsample = self._get_downsample()
         projections = self._get_projections()
         show_log = self._display_log.value
-        show_param = self._display_parameters.value
+        # show_param = self._display_parameters.value
 
-        self._run_emalign(ref_map, query_map, downsample, projections, show_log, show_param)
+        self._run_emalign(ref_map, query_map, downsample, projections, show_log)
 
-    def _run_emalign(self, ref_map, query_map, downsample, projections, show_log, show_param):
-        emalign(self.session, ref_map, query_map, downsample=downsample, projections=projections, show_log=show_log, show_param=show_param, refine=False)
-        if self._use_fit_map.value:
-            # fitmap query_map inMap ref_map:
-            self.log.info('Used Fit Map to perform additional refinement.')
-            fitcmd.fit_map_in_map(query_map, ref_map, metric='correlation', envelope=True, zeros=False, shift=True, rotate=True,
-                                  move_whole_molecules=True, map_atoms=None, max_steps=2000, grid_step_min=0.01, grid_step_max=0.5)
+    def _run_emalign(self, ref_map, query_map, downsample, projections, show_log):
+        emalign(self.session, ref_map, query_map, downsample=downsample, projections=projections, show_log=show_log, refine=self._use_fit_map.value)
 
     @classmethod
     def get_singleton(self, session, create=True):
@@ -238,7 +233,7 @@ class EMalignDialog(ToolInstance):
             self._ds_frames[i].setEnabled(ds_values[i])
 
     def _enable_other_options(self):
-        options = [self._projections_frame, self._display_log_frame, self._display_parameters_frame, self._use_fit_map_frame, self._downsample_header_frame, self.header_proj_frame]
+        options = [self._projections_frame, self._display_log_frame, self._use_fit_map_frame, self._downsample_header_frame, self.header_proj_frame]
         for option in options:
             option.setEnabled(True)
 

@@ -190,7 +190,7 @@ def evalO(X, R_true, R_est, G):
 
 
 # %%
-def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=True, session=None):
+def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, session=None):
     """
     This function aligns vol2 according to vol1.
     Aligning vol2 to vol1 by finding the relative rotation, translation and reflection between vol1 and vol2,
@@ -267,7 +267,6 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
 
     n_1 = np.shape(vol1)
     n_2 = np.shape(vol2)
-    print_to_log(log, f"Referencing vol1 ({n_1}) and vol2 ({n_2})")
 
     assert np.size(n_1) == 3 and np.size(n_2) == 3, "Inputs must be 3D"
     assert n_1[0] == n_1[1] == n_1[2], "All dimensions of input volumes must be equal"
@@ -279,15 +278,15 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
         n_ds = downsample
         if downsample is None:
             assert n <= 256, "Input volume is more than 256 pixels, must downsample"
-            print_to_log(log, f"---> Downsampling volumes from {n} to {n_ds} pixels", show_log)
+            print_to_log(log, f"---> Downsampling volumes from {n} to {n_ds} pixels", show_log=show_log)
             vol1_ds = cryo_downsample(vol1, (n_ds, n_ds, n_ds))
             vol2_ds = cryo_downsample(vol2, (n_ds, n_ds, n_ds))
         else:
             assert downsample <= n, "Downsample must be less than input volume size"
-            print_to_log(log, f"---> Downsampling volumes from {n} to {n_ds} pixels", show_log)
+            print_to_log(log, f"---> Downsampling volumes from {n} to {n_ds} pixels", show_log=show_log)
             vol1_ds = cryo_downsample(vol1, (n_ds, n_ds, n_ds))
             vol2_ds = cryo_downsample(vol2, (n_ds, n_ds, n_ds))
-        print_to_log(log, f"Referencing vol1_ds ({np.shape(vol1_ds)}) and vol2_ds ({np.shape(vol2_ds)})")
+        print_to_log(log, f"---> Referencing volumes sized ({n_ds},{n_ds},{n_ds})", show_log=show_log)
     else:
         assert n_1[0] == n_2[0], "ERROR"
         vol1_ds = vol1
@@ -299,7 +298,7 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
     logger.debug("R_est=\n%s", str(R_est))
     logger.debug("R_est_J=\n%s", str(R_est_J))
 
-    vol2_aligned_ds = fastrotate3d.fastrotate3d(vol2_ds, R_est)  # Rotate the original vol_2 back.
+    vol2_aligned_ds = fastrotate3d.fastrotate3d(vol2_ds, R_est)  # rotate the original vol_2 back
     vol2_aligned_J_ds = fastrotate3d.fastrotate3d(vol2_ds, R_est_J)
 
     vol2_aligned_J_ds = np.flip(vol2_aligned_J_ds, axis=2)
@@ -331,9 +330,9 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
         # vol2_ds = np.flip(vol2_ds, axis=2)
         vol2 = np.flip(vol2, axis=2)
         reflect = 1
-        print_to_log(log, "---> Input volumes are reflected w.r.t each other", show_log)
+        print_to_log(log, "---> Input volumes are reflected w.r.t each other", show_log=show_log)
 
-    print_to_log(log, f"---> Correlation between downsampled aligned volumes before optimization is {corr_v:.4f}", show_log)
+    print_to_log(log, f"---> Correlation between downsampled aligned volumes is {corr_v:.4f}", show_log=show_log)
 
     logger.debug("R_est=\n%s", str(R_est))
     logger.debug("estdx_ds=%s", str(estdx_ds))
@@ -344,29 +343,29 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
 
     logger.debug("bestR=\n%s", str(bestR))
 
-    print_to_log(log, "---> Done aligning downsampled volumes\n---> Applying estimated rotation to volumes", show_log)
+    print_to_log(log, "---> Done aligning downsampled volumes\n"
+                      "---> Applying estimated rotation to volumes", show_log=show_log)
 
     vol2aligned = fastrotate3d.fastrotate3d(vol2, bestR)
 
-    print_to_log(log, "---> Estimating shift for volumes", show_log)
+    print_to_log(log, "---> Estimating shift for volumes", show_log=show_log)
 
     bestdx = register_translations_3d(vol1, vol2aligned)
     logger.debug("bestdx=%s", str(bestdx))
 
-    print_to_log(log, f"---> Translations BEFORE pixel factor: [{bestdx[0]:.3f}, {bestdx[1]:.3f}, {bestdx[2]:.3f}]")
+    if not align_in_place:
+        translation_msg = f"---> Translations before pixel adjustment: [{bestdx[0]:.3f}, {bestdx[1]:.3f}, {bestdx[2]:.3f}]"
+        print_to_log(log, translation_msg, show_log=show_log)
 
     if align_in_place:
-        print_to_log(log, "---> Translating volumes", show_log)
+        print_to_log(log, "---> Translating volumes\n", show_log=show_log)
         if (np.round(bestdx) == bestdx).all():
             # Use fast method:
             vol2aligned = reshift_vol.reshift_vol_int(vol2aligned, bestdx)
         else:
             vol2aligned = reshift_vol.reshift_vol(vol2aligned, bestdx)
-
-        print_to_log(log, "---> Computing correlations of volumes", show_log)
-        bestcorr = np.mean(np.corrcoef(vol1.ravel(), vol2aligned.ravel(), rowvar=False)[0, 1:])
-
-        print_param(log, bestR, bestdx, bestcorr, show_param)
+    else:
+        vol2aligned = vol2
 
     logging.shutdown()
 
@@ -378,15 +377,14 @@ def align_volumes(vol1, vol2, verbose=0, opt=None, show_log=True, show_param=Tru
 # -------------------------------------------------------------------------------------------------------------------- #
 # --------------------------------------------- Helper Functions: ---------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
-
-def print_param(log, bestR, bestdx, bestcorr, show_param):
-    if show_param:
-        log.info('Estimated rotation:')
-        log.info(f'[[{bestR[0, 0]:.3f} {bestR[0, 1]:.3f} {bestR[0, 2]:.3f}],')
-        log.info(f'[{bestR[1, 0]:.3f} {bestR[1, 1]:.3f} {bestR[1, 2]:.3f}]')
-        log.info(f'[{bestR[2, 0]:.3f} {bestR[2, 1]:.3f} {bestR[2, 2]:.3f}]]')
-        log.info(f'Estimated translations: [{bestdx[0]:.3f}, {bestdx[1]:.3f}, {bestdx[2]:.3f}]')
-        log.info(f'Correlation between aligned volumes is {bestcorr:.4f}')
+#
+# def print_param(log, bestR, bestdx, show_param):
+#     if show_param:
+#         log.info('Estimated Rotation:')
+#         log.info(f'[[{bestR[0, 0]:.3f} {bestR[0, 1]:.3f} {bestR[0, 2]:.3f}],')
+#         log.info(f'[{bestR[1, 0]:.3f} {bestR[1, 1]:.3f} {bestR[1, 2]:.3f}]')
+#         log.info(f'[{bestR[2, 0]:.3f} {bestR[2, 1]:.3f} {bestR[2, 2]:.3f}]]')
+#         log.info(f'Estimated Translations: \n[{bestdx[0]:.3f}, {bestdx[1]:.3f}, {bestdx[2]:.3f}]\n')
 
 
 def print_to_log(log, msg, show_log=True):
