@@ -40,7 +40,7 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
 
     # Calculate overlap and correlation (calculated using only data above contour level from first map):
     print_to_log(log, "Stats before alignment with EMalign:")
-    overlap, corr, corr_m = calc_overlap_and_corr(query_map, ref_map, True)
+    overlap, corr, corr_m = calc_overlap_and_corr(query_map, ref_map, False)
     print_to_log(log, f"correlation = {corr:.4f}, correlation about mean = {corr_m:.4f}, overlap = {overlap:.3f}\n")
 
     ref = ref_map.data
@@ -172,7 +172,7 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
 
     # Calculate overlap and correlation (calculated using only data above contour level from first map):
     print_to_log(log, "Stats after applying the transformations:")
-    overlap, corr, corr_m = calc_overlap_and_corr(query_map, ref_map, True)
+    overlap, corr, corr_m = calc_overlap_and_corr(query_map, ref_map, False)
     print_to_log(log, f"correlation = {corr:.4f}, correlation about mean = {corr_m:.4f}, overlap = {overlap:.3f}\n")
 
     # Perform additional refinement with Fit in Map:
