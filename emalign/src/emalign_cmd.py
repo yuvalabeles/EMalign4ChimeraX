@@ -1,4 +1,5 @@
 import math
+import time
 # import os
 from chimerax.map_fit import fitcmd
 from chimerax.map_fit.fitmap import map_overlap_and_correlation as calc_overlap_and_corr
@@ -7,9 +8,7 @@ import numpy as np
 from chimerax.core.errors import UserError
 from . import align_volumes_3d, reshift_vol, fastrotate3d
 from .common_finufft import cryo_downsample, cryo_crop
-
-# from . import read_write as mrc
-# import mrcfile
+from .utils import fuzzy_mask
 
 
 def register_emalign_command(logger):
@@ -35,12 +34,13 @@ def register_emalign_command(logger):
     register('volume emalign', emalign_desc, emalign, logger=logger)
 
 
-def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log=True, show_param=True, refine=False):
+def emalign(session, ref_map, query_map, downsample=64, projections=50, show_log=True, show_param=True, refine=False):
     log = session.logger
 
+    # TODO add the option to choose whether the correaltion is computed above threshold (like in Fit in Map)
     # Calculate overlap and correlation (calculated using only data above contour level from first map):
-    print_to_log(log, "Stats before alignment with EMalign:")
-    overlap, corr, corr_m = calc_overlap_and_corr(query_map, ref_map, False)
+    print_to_log(log, "\nStats before alignment with EMalign:")
+    overlap, corr, corr_m = calc_overlap_and_corr(query_map, ref_map, True)
     print_to_log(log, f"correlation = {corr:.4f}, correlation about mean = {corr_m:.4f}, overlap = {overlap:.3f}\n")
 
     ref = ref_map.data
@@ -80,8 +80,19 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
     pixel_query = query_dict.get("step")[0]
 
     if pixel_query > pixel_ref:
+        t1 = time.perf_counter()
         # Create a copy of the ref_vol to run on:
         ref_vol_copy = ref_vol.copy()
+        query_vol_copy = query_vol.copy()
+
+        optimal_radius = find_optimal_radius(ref_vol)
+        r0_factor = optimal_radius / N_ref
+
+        m1 = fuzzy_mask([N_ref, N_ref, N_ref], dtype=np.float32, r0=r0_factor * N_ref)
+        m2 = fuzzy_mask([N_query, N_query, N_query], dtype=np.float32, r0=r0_factor * N_query)
+
+        ref_vol_copy = ref_vol_copy * m1
+        query_vol_copy = query_vol_copy * m2
 
         # query_vol has the bigger pixel size ---> downsample ref_vol to N_ref_ds and then crop it to N_query:
         N_ref_ds = math.floor(N_ref * (pixel_ref / pixel_query))
@@ -95,7 +106,7 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
         opt.align = [False]
 
         # At this point both volumes are the same dimension
-        bestR, bestdx, reflect, query_vol_aligned = align_volumes_3d.align_volumes(ref_vol_cropped, query_vol,
+        bestR, bestdx, reflect, query_vol_aligned = align_volumes_3d.align_volumes(ref_vol_cropped, query_vol_copy,
                                                                                    opt=opt,
                                                                                    show_log=show_log,
                                                                                    session=session)
@@ -114,10 +125,23 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
             query_vol_aligned = reshift_vol.reshift_vol(query_vol_aligned, bestdx)
 
         query_vol_aligned = query_vol_aligned.astype(np.float32)
+        t2 = time.perf_counter()
+        print_to_log(log, f"Aligning the volumes using EMalign took {t2 - t1:.2f} seconds\n")
 
     elif pixel_ref > pixel_query:  # ref_vol has the bigger pixel size and the smaller volume size
+        t1 = time.perf_counter()
         # Create a copy of the query_vol to run align_volumes on:
+        ref_vol_copy = ref_vol.copy()
         query_vol_copy = query_vol.copy()
+
+        optimal_radius = find_optimal_radius(query_vol)
+        r0_factor = optimal_radius / N_query
+
+        m1 = fuzzy_mask([N_ref, N_ref, N_ref], dtype=np.float32, r0=r0_factor * N_ref)
+        m2 = fuzzy_mask([N_query, N_query, N_query], dtype=np.float32, r0=r0_factor * N_query)
+
+        ref_vol_copy = ref_vol_copy * m1
+        query_vol_copy = query_vol_copy * m2
 
         N_query_ds = math.floor(N_query * (pixel_query / pixel_ref))
         print_to_log(log, f"---> Size to downsample query map to = {N_query_ds}", show_log=show_log)
@@ -130,7 +154,7 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
 
         opt.align = [False]
 
-        bestR, bestdx, reflect, vol_aligned = align_volumes_3d.align_volumes(ref_vol, query_vol_copy_cropped,
+        bestR, bestdx, reflect, vol_aligned = align_volumes_3d.align_volumes(ref_vol_copy, query_vol_copy_cropped,
                                                                              opt=opt,
                                                                              show_log=show_log,
                                                                              session=session)
@@ -149,13 +173,18 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
             query_vol_aligned = reshift_vol.reshift_vol(query_vol_aligned, bestdx)
 
         query_vol_aligned = query_vol_aligned.astype(np.float32)
+        t2 = time.perf_counter()
+        print_to_log(log, f"Aligning the volumes using EMalign took {t2 - t1:.2f} seconds\n")
 
     else:
         # pixel_ref == pixel_query ---> no need to downsample anything
+        t1 = time.perf_counter()
         bestR, bestdx, reflect, query_vol_aligned = align_volumes_3d.align_volumes(ref_vol, query_vol,
                                                                                    opt=opt,
                                                                                    show_log=show_log,
                                                                                    session=session)
+        t2 = time.perf_counter()
+        print_to_log(log, f"Aligning the volumes using EMalign took {t2 - t1:.2f} seconds\n")
 
     print_param(log, bestR, bestdx, show_param)
 
@@ -172,7 +201,7 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
 
     # Calculate overlap and correlation (calculated using only data above contour level from first map):
     print_to_log(log, "Stats after applying the transformations:")
-    overlap, corr, corr_m = calc_overlap_and_corr(query_map, ref_map, False)
+    overlap, corr, corr_m = calc_overlap_and_corr(query_map, ref_map, True)
     print_to_log(log, f"correlation = {corr:.4f}, correlation about mean = {corr_m:.4f}, overlap = {overlap:.3f}\n")
 
     # Perform additional refinement with Fit in Map:
@@ -188,6 +217,102 @@ def emalign(session, ref_map, query_map, downsample=64, projections=30, show_log
 # -------------------------------------------------------------------------------------------------------------------- #
 # --------------------------------------------- Helper Functions: ---------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
+def find_knee(cumsum_signal):
+    """
+    Find the knee point in the cumulative sum signal by calculating the maximum distance
+    from the line connecting the first and last points of the signal.
+
+    Parameters:
+    - cumsum_signal (numpy.ndarray): 1D array containing the cumulative sum of the signal.
+
+    Returns:
+    - knee_index (int): Index of the knee point in the cumsum signal.
+    """
+    # Normalize the cumsum signal to be between 0 and 1
+    norm_signal = (cumsum_signal - cumsum_signal[0]) / (cumsum_signal[-1] - cumsum_signal[0])
+
+    # Create a straight line from the first to the last point
+    line = np.linspace(0, 1, len(cumsum_signal))
+
+    # Calculate the distance from each point in the signal to the line
+    distances = np.abs(norm_signal - line)
+
+    # Find the index of the maximum distance (the knee point)
+    knee_index = np.argmax(distances)
+
+    return knee_index
+
+
+def find_centered_circle(arr, energy_fraction=0.9):
+    """
+    Find the radius of a centered circle that contains the specified fraction of energy of the 2D array.
+
+    Parameters:
+    - arr (numpy.ndarray): 2D array representing the data.
+    - energy_fraction (float): Fraction of the total energy to be contained in the circle (default 90%).
+
+    Returns:
+    - radius (float): The radius of the circle that contains the specified fraction of energy.
+    """
+    # Compute total energy (sum of squares of all elements)
+    total_energy = np.sum(arr ** 2)
+
+    # Center coordinates
+    center_x, center_y = np.array(arr.shape) // 2
+
+    # Create a distance grid relative to the center
+    y, x = np.ogrid[:arr.shape[0], :arr.shape[1]]
+    distances = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2)
+
+    # Flatten arrays for easier sorting
+    distances_flat = distances.flatten()
+    energy_flat = (arr ** 2).flatten()
+
+    # Sort by increasing distance from the center
+    sorted_indices = np.argsort(distances_flat)
+    sorted_energy = energy_flat[sorted_indices]
+    sorted_distances = distances_flat[sorted_indices]
+
+    # Cumulative energy sum
+    cumulative_energy = np.cumsum(sorted_energy)
+
+    # Find the distance at which cumulative energy reaches the desired fraction
+    target_energy = energy_fraction * total_energy
+    radius_idx = np.searchsorted(cumulative_energy, target_energy)
+
+    # Get the corresponding radius
+    radius = sorted_distances[radius_idx]
+
+    return radius
+
+
+def find_optimal_radius(vol):
+    # Iterate over slices in the 3d array and find radius for each axis:
+    n = vol.shape[0]
+    r_x_list = []
+    r_y_list = []
+    r_z_list = []
+    for i in range(n):
+        vol_2d_yz = vol[i]
+        r_x_i = find_centered_circle(vol_2d_yz)
+        r_x_list.append(r_x_i)
+
+        vol_2d_xz = vol[:, i, :]
+        r_y_i = find_centered_circle(vol_2d_xz)
+        r_y_list.append(r_y_i)
+
+        vol_2d_xy = vol[:, :, i]
+        r_z_i = find_centered_circle(vol_2d_xy)
+        r_z_list.append(r_z_i)
+
+    r_x_mean = np.mean(r_x_list)
+    r_y_mean = np.mean(r_y_list)
+    r_z_mean = np.mean(r_z_list)
+
+    optimal_radius = max(r_x_mean, r_y_mean, r_z_mean)
+
+    return optimal_radius
+
 
 def validate_input(ref_vol, query_vol):
     # Handle the case where ref_vol is 4D:

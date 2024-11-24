@@ -69,7 +69,7 @@ class EMalignDialog(ToolInstance):
 
         rm.value_changed.connect(self._object_chosen)
 
-        mlayout.addStretch(1)  # Extra space at end
+        mlayout.addStretch(1)  # extra space at end
 
         return mf
 
@@ -110,8 +110,10 @@ class EMalignDialog(ToolInstance):
 
         self._no_downsample, self._downsample_64, self._downsample_128, self._downsample_256 = s_real.values[0], s_64.values[0], s_128.values[0], s_256.values[0]
         radio_buttons(self._no_downsample, self._downsample_64, self._downsample_128, self._downsample_256)
+
         self._ds_frames = s_real.frame, s_64.frame, s_128.frame, s_256.frame
         self._no_downsample_frame, self._downsample_64_frame, self._downsample_128_frame, self._downsample_256_frame = self._ds_frames
+
         self._downsample_header_frame = header_dns.frame
 
         vlist = self.session.models.list(type=Volume)
@@ -123,18 +125,20 @@ class EMalignDialog(ToolInstance):
             self._downsample_128_frame.setEnabled(False)
             self._downsample_256_frame.setEnabled(False)
 
+        # TODO change back the default values - projections=50, fitmap=True, log=False:
+
         header_proj = EntriesRow(f, 'Projections:')
-        per = EntriesRow(f, False, '25 (fast)', True, '50 (default)', False, '125 (for noisier data)')
+        per = EntriesRow(f, True, '25 (fast)', False, '50 (default)', False, '125 (for noisier data)')
         self._projections_25, self._projections_50, self._projections_125 = per.values
         radio_buttons(self._projections_25, self._projections_50, self._projections_125)
         self._projections_frame = per.frame
         self.header_proj_frame = header_proj.frame
 
-        use_fit_map = EntriesRow(f, True, 'Use Fit in Map to perform additional refinement (recommended)')
+        use_fit_map = EntriesRow(f, False, 'Use Fit in Map to perform additional refinement (recommended)')
         self._use_fit_map = use_fit_map.values[0]
         self._use_fit_map_frame = use_fit_map.frame
 
-        log = EntriesRow(f, False, 'Display detailed log')
+        log = EntriesRow(f, True, 'Display detailed log')
         self._display_log = log.values[0]
         self._display_log_frame = log.frame
 

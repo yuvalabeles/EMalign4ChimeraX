@@ -13,76 +13,32 @@ class FINufftPlan:
         """
         self.sz = sz
         self.dim = len(sz)
+
         # TODO: Things get messed up unless we ensure a 'C' ordering here - investigate why
         self.fourier_pts = np.asarray(np.mod(fourier_pts + np.pi, 2 * np.pi) - np.pi, order='C')
         self.num_pts = fourier_pts.shape[1]
         self.epsilon = epsilon
 
-        # Get a handle on the appropriate 1d/2d/3d forward transform function in finufftpy
+        # Get a handle on the appropriate 1d/2d/3d forward transform function in finufftpy:
         self.transform_function = getattr(finufft, {1: 'nufft1d2', 2: 'nufft2d2', 3: 'nufft3d2'}[self.dim])
-        # Get a handle on the appropriate 1d/2d/3d adjoint function in finufftpy
+        # Get a handle on the appropriate 1d/2d/3d adjoint function in finufftpy:
         self.adjoint_function = getattr(finufft, {1: 'nufft1d1', 2: 'nufft2d1', 3: 'nufft3d1'}[self.dim])
 
     def transform(self, signal):
-        # epsilon = max(self.epsilon, np.finfo(signal.dtype).eps)
-
-        # Forward transform functions in finufftpy have signatures of the form:
-        # (x, y, z, c, isign, eps, f, ...)
-        # (x, y     c, isign, eps, f, ...)
-        # (x,       c, isign, eps, f, ...)
-        # Where f is a Fortran-order ndarray of the appropriate dimensions
-        # We form these function signatures here by tuple-unpacking
-
-        # result = np.zeros(self.num_pts).astype('complex128')
-
         result = self.transform_function(
             self.fourier_pts[0].astype('float64'),
             self.fourier_pts[1].astype('float64'),
             self.fourier_pts[2].astype('float64'),
             signal.astype('complex128'))
-        # *self.fourier_pts[0],
-        # *self.fourier_pts[1],
-        # *self.fourier_pts[2],
-        # signal
-        # *self.fourier_pts,
-        # result,
-        # -1,
-        # epsilon,
-        # signal
-        # )
-
-        # if result_code != 0:
-        #    raise RuntimeError(f'FINufft transform failed. Result code {result_code}')
 
         return result
 
     def adjoint(self, signal):
-        # epsilon = max(self.epsilon, np.finfo(signal.dtype).eps)
-
-        # Adjoint functions in finufftpy have signatures of the form:
-        # (x, y, z, c, isign, eps, ms, mt, mu, f, ...)
-        # (x, y     c, isign, eps, ms, mt      f, ...)
-        # (x,       c, isign, eps, ms,         f, ...)
-        # Where f is a Fortran-order ndarray of the appropriate dimensions
-        # We form these function signatures here by tuple-unpacking
-
-        # Note: Important to have order='F' here!
-        # result = np.zeros(self.sz, order='F').astype('complex128')
-
         result = self.adjoint_function(
             self.fourier_pts[0].astype('float64'),
             self.fourier_pts[1].astype('float64'),
             self.fourier_pts[2].astype('float64'),
             signal.astype('complex128'))
-        # *self.fourier_pts,
-        # signal,
-        # 1,
-        # epsilon,
-        # *self.sz,
-        # result
-        # )
-        # if result_code != 0:
-        #    raise RuntimeError(f'FINufft adjoint failed. Result code {result_code}')
 
         return result
 
@@ -93,7 +49,7 @@ def cryo_project(vol, rot, n=None, eps=np.finfo(np.float32).eps, batch_size=100)
         n = nv
 
     r = np.arange(-(n - 1) / 2, (n - 1) / 2 + 1)
-    I, J = np.meshgrid(r, r)  # i, j are reverse, but I flatten them using python indexing, so they are switched back
+    I, J = np.meshgrid(r, r)  # i, j are reverse, flatten them using python indexing, so they are switched back
     I = I.flatten()
     J = J.flatten()
 

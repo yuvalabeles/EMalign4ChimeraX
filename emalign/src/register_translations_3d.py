@@ -1,63 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Oct 18 21:00:50 2022
-
-@author: yoelsh
-"""
 
 import numpy as np
-from numpy import fft
-from .reshift_vol import reshift_vol
-from . import reshift_vol
-from scipy.optimize import minimize
+# from numpy import fft
+from scipy import fft
 
 
-class fft_data_class:
-    def __init__(self, in_data):  # num_threads = 1
-        n = in_data.shape[0]
-        n2 = n // 2 + 1
-
-        if in_data.dtype == np.float32:
-            real_type = np.float32
-            complex_type = np.complex64
-        else:
-            real_type = np.float64
-            complex_type = np.complex128
-
-        self.in_array_f = np.empty((n, n, n), dtype=real_type)
-        self.in_array_b = np.empty((n, n, n2), dtype=complex_type)
-        self.fft_object_f = fft.rfftn(self.in_array_f)
-        self.fft_object_b = fft.irfftn(self.in_array_b)
-
-
-# %%
-def eval3Dshift(X, vol1, vol2, reshift_cache):
-    dx = X[0]
-    dy = X[1]
-    dz = X[2]
-    vol2_s = reshift_vol.reshift_vol(vol2, np.array([dx, dy, dz]), reshift_cache)
-    c = np.mean(np.corrcoef(vol1.ravel(), vol2_s.ravel(), rowvar=False)[0, 1:]).astype('float64')
-    e = 1.0 - c
-    return e
-
-
-# %%
-def refine3DshiftBFGS(vol1, vol2, estdx):
-    # Create initial guess vector
-    X0 = np.array([estdx[0].real, estdx[1].real, estdx[2].real]).astype('float64')
-    # BFGS optimization:
-
-    reshift_cache = reshift_vol.fft_data_class(vol1)
-    res = minimize(eval3Dshift, X0, args=(vol1, vol2, reshift_cache),
-                   method='BFGS', tol=1e-3,
-                   options={'gtol': 1e-1, 'disp': False})
-    X = res.x
-    estdx = np.array([X[0], X[1], X[2]])
-    return estdx
-
-
-# %%
 def register_translations_3d(vol1, vol2):
     """
     REGISTER_TRANSLATIONS_3D  Estimate relative shift between two volumes.
@@ -76,24 +24,24 @@ def register_translations_3d(vol1, vol2):
       err     Difference between estidx and refidx.
     """
 
-    # Take Fourer transform of both volumes and compute the phase correlation factors.
-    hats1 = fft.fftn(vol1)  # Compute centered Fourier transform
+    # Take Fourer transform of both volumes and compute the phase correlation factors:
+    hats1 = fft.fftn(vol1)  # compute centered Fourier transform
     hats2 = fft.fftn(vol2)
 
     tmp1 = hats1 * np.conj(hats2)
     tmp2 = abs(tmp1)
 
     bool_idx = tmp2 < 2 * np.finfo(vol1.dtype).eps
-    tmp2[bool_idx] = 1  # Avoid division by zero.
+    tmp2[bool_idx] = 1  # avoid division by zero
 
-    # The numerator for these indices is small anyway.
+    # The numerator for these indices is small anyway:
     rhat = tmp1 / tmp2
 
-    # Compute the relative shift between the images to within 1 pixel accuracy.
+    # Compute the relative shift between the images to within 1 pixel accuracy:
     r = fft.ifftn(rhat).real
     ii = np.argmax(r)
 
-    # Find the center
+    # Find the center:
     n = np.size(vol1, 0)
     cX = np.fix(n / 2)
     cY = np.fix(n / 2)
@@ -108,5 +56,5 @@ def register_translations_3d(vol1, vol2):
 
     estdx = [-sX, -sY, -sZ]
 
-    # No need to refine tranlations
+    # No need to refine tranlations:
     return np.array(estdx)

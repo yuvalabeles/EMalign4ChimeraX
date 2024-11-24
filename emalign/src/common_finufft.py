@@ -1,23 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Feb  3 13:20:15 2021
-
-@author: yaelharpaz1
-"""
 
 import numpy as np
-from numpy import fft
+# from numpy import fft
+from scipy import fft
 import finufft
-
 import warnings
+
 warnings.filterwarnings("ignore")
 
 
 def cryo_pft(p, n_r, n_theta):
     """
-    Compute the polar Fourier transform of projections with resolution n_r in the radial direction
-    and resolution n_theta in the angular direction.
+    Compute the polar Fourier transform of projections with resolution n_r in the radial direction and resolution
+    n_theta in the angular direction.
+
     :param p:
     :param n_r: Number of samples along each ray (in the radial direction).
     :param n_theta: Angular resolution. Number of Fourier rays computed for each projection.
@@ -36,22 +33,24 @@ def cryo_pft(p, n_r, n_theta):
         freqs[1, i * n_r: (i + 1) * n_r] = np.arange(n_r) * np.cos(i * dtheta)
 
     freqs *= omega0
-    # finufftpy require it to be aligned in fortran order
+    # finufftpy require it to be aligned in fortran order:
     pf = np.empty((n_r * n_theta // 2, n_projs), dtype='complex128', order='F')
-    # finufftpy.nufft2d2many(freqs[0], freqs[1], pf, 1, 1e-15, p)
+    # finufftpy.nufft2d2many(freqs[0], freqs[1], pf, 1, 1e-15, p):
     p_complex = np.array(p.astype('complex128'))
     for i in range(n_projs):
         pf[:, i] = finufft.nufft2d2(freqs[0], freqs[1], p_complex[:, :, i])
     pf = pf.reshape((n_r, n_theta // 2, n_projs), order='F')
     pf = np.concatenate((pf.conj(), pf), axis=1).copy()
+
     return pf, freqs
 
 
 def cryo_crop(x, out_shape):
     """
     :param x: ndarray of size (N_1,...N_k)
-    :param out_shape: iterable of integers of length k. The value in position i (n_i) is the size we want to cut from
-        the center of x in dimension i. If the value of n_i <= 0 or >= N_i then the dimension is left as is.
+    :param out_shape: Iterable of integers of length k.
+                      The value in position i (n_i) is the size we want to cut from the center of x in dimension i.
+                      If the value of n_i <= 0 or >= N_i then the dimension is left as is.
     :return: out: The center of x with size outshape.
     """
     x = x.copy()
@@ -67,8 +66,9 @@ def cryo_crop(x, out_shape):
 def cryo_downsample(x, out_shape):
     """
     :param x: ndarray of size (N_1,...N_k)
-    :param out_shape: iterable of integers of length k. The value in position i (n_i) is the size we want to cut from
-        the center of x in dimension i. If the value of n_i <= 0 or >= N_i then the dimension is left as is.
+    :param out_shape: Iterable of integers of length k.
+                      The value in position i (n_i) is the size we want to cut from the center of x in dimension i.
+                      If the value of n_i <= 0 or >= N_i then the dimension is left as is.
     :return: out: downsampled x
     """
     dtype_in = x.dtype
@@ -76,7 +76,7 @@ def cryo_downsample(x, out_shape):
     out_shape = np.array([s if 0 < s < in_shape[i] else in_shape[i] for i, s in enumerate(out_shape)])
 
     if all(in_shape == out_shape):
-        return x.copy()  # No need to do anything
+        return x.copy()  # no need to do anything
 
     fourier_dims = np.array([i for i, s in enumerate(out_shape) if 0 < s < in_shape[i]])
     size_in = np.prod(in_shape[fourier_dims])
