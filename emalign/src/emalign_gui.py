@@ -87,6 +87,7 @@ class EMalignDialog(ToolInstance):
         downsample_guide = EntriesRow(f, 'Downsample - dimension to downsample input volumes to speed up computations. ')
         projection_guide = EntriesRow(f, 'Projections - number of projections to use for alignment. ')
         note = EntriesRow(f, '* the alignment may take a few minutes, don\'t click the screen while EMalign is running.')
+        # TODO - add to the help guide a short explanation on masking
 
         self.downsample_guide_frame = downsample_guide.frame
         self.projection_guide_frame = projection_guide.frame
@@ -125,7 +126,7 @@ class EMalignDialog(ToolInstance):
             self._downsample_128_frame.setEnabled(False)
             self._downsample_256_frame.setEnabled(False)
 
-        # TODO change back the default values - projections=50, fitmap=True, log=False:
+        # TODO change back to these default values - projections=50, fitmap=True, log=False
 
         header_proj = EntriesRow(f, 'Projections:')
         per = EntriesRow(f, True, '25 (fast)', False, '50 (default)', False, '125 (for noisier data)')
@@ -142,15 +143,15 @@ class EMalignDialog(ToolInstance):
         self._display_log = log.values[0]
         self._display_log_frame = log.frame
 
-        # params = EntriesRow(f, True, 'Display output parameters (rotation, translation, correlation)')
-        # self._display_parameters = params.values[0]
-        # self._display_parameters_frame = params.frame
+        mask = EntriesRow(f, False, 'Use masking prior to the alignment')
+        self._masking = mask.values[0]
+        self._masking_frame = mask.frame
 
         if not vlist:
             self.header_proj_frame.setEnabled(False)
             self._projections_frame.setEnabled(False)
             self._display_log_frame.setEnabled(False)
-            # self._display_parameters_frame.setEnabled(False)
+            self._masking_frame.setEnabled(False)
             self._use_fit_map_frame.setEnabled(False)
 
         if vlist:
@@ -178,12 +179,12 @@ class EMalignDialog(ToolInstance):
         downsample = self._get_downsample()
         projections = self._get_projections()
         show_log = self._display_log.value
-        # show_param = self._display_parameters.value
+        use_masking = self._masking.value
 
-        self._run_emalign(ref_map, query_map, downsample, projections, show_log)
+        self._run_emalign(ref_map, query_map, downsample, projections, show_log, use_masking)
 
-    def _run_emalign(self, ref_map, query_map, downsample, projections, show_log):
-        emalign(self.session, ref_map, query_map, downsample=downsample, projections=projections, show_log=show_log, refine=self._use_fit_map.value)
+    def _run_emalign(self, ref_map, query_map, downsample, projections, show_log, use_masking):
+        emalign(self.session, ref_map, query_map, downsample=downsample, projections=projections, show_log=show_log, refine=self._use_fit_map.value, mask=use_masking)
 
     @classmethod
     def get_singleton(self, session, create=True):
@@ -237,7 +238,7 @@ class EMalignDialog(ToolInstance):
             self._ds_frames[i].setEnabled(ds_values[i])
 
     def _enable_other_options(self):
-        options = [self._projections_frame, self._display_log_frame, self._use_fit_map_frame, self._downsample_header_frame, self.header_proj_frame]
+        options = [self._projections_frame, self._display_log_frame, self._use_fit_map_frame, self._downsample_header_frame, self.header_proj_frame, self._masking_frame]
         for option in options:
             option.setEnabled(True)
 

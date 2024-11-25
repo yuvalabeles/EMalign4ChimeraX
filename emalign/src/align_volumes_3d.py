@@ -20,37 +20,30 @@ REFLECT_IDENTITY = 0
 
 def align_ds_volumes(vol1_ds, vol2_ds, Nprojs=50, log=None, show_log=False):
     corr_ds_before = round(calculate_chimerax_correlation(vol1_ds, vol2_ds, center_data=False), 4)
-    print_to_log(log, f"---> Correlation between downsampled volumes before alignment is {corr_ds_before:.4f}",
-                 show_log=show_log)
+    print_to_log(log, f"---> Correlation between downsampled volumes before alignment is {corr_ds_before:.4f}", show_log=show_log)
 
-    print_to_log(log, f"---> Generating {Nprojs} reference projections", show_log=show_log)
     # Generating 15236 rotation matrices (3x3) into Rots (3x3x15236):
     Rots = genRotationsGrid(75)
 
     # Extracting the number of rotations we generated into sz_Rots: (15236)
     sz_Rots = np.size(Rots, 2)
 
+    print_to_log(log, f"---> Generating {Nprojs} reference projections", show_log=show_log)
     rand_inds = np.random.randint(sz_Rots, size=Nprojs * 2)
     inds_to_align = rand_inds[0:Nprojs]
     inds_to_ref = rand_inds[Nprojs:]
 
-    R_est, R_est_J = fast_alignment_3d(vol1_ds, vol2_ds, inds_to_align, inds_to_ref, Rots, Nprojs, log=log,
-                                       show_log=show_log)
-    R_est, estdx_ds, reflect, corr_v = calculate_alignment_parameters(vol1_ds,
-                                                                      vol2_ds,
-                                                                      R_est,
-                                                                      R_est_J)
+    R_est, R_est_J = fast_alignment_3d(vol1_ds, vol2_ds, inds_to_align, inds_to_ref, Rots, Nprojs, log=log, show_log=show_log)
+    R_est, estdx_ds, reflect, corr_v = calculate_alignment_parameters(vol1_ds, vol2_ds, R_est, R_est_J)
+
     output_parameters = R_est, estdx_ds, reflect, corr_v
 
     # We want to try the reverse matrices assignment if the corr improved in less than 10%:
     corr_goal = corr_ds_before * 1.10
     if corr_v < corr_goal:
-        R_est_rev, R_est_J_rev = fast_alignment_3d(vol1_ds, vol2_ds, inds_to_ref, inds_to_align, Rots, Nprojs, log=log,
-                                                   show_log=False)
-        R_est_rev, estdx_ds_rev, reflect_rev, corr_v_rev = calculate_alignment_parameters(vol1_ds,
-                                                                                          vol2_ds,
-                                                                                          R_est_rev,
-                                                                                          R_est_J_rev)
+        R_est_rev, R_est_J_rev = fast_alignment_3d(vol1_ds, vol2_ds, inds_to_ref, inds_to_align, Rots, Nprojs, log=log, show_log=False)
+        R_est_rev, estdx_ds_rev, reflect_rev, corr_v_rev = calculate_alignment_parameters(vol1_ds, vol2_ds, R_est_rev, R_est_J_rev)
+
         if corr_v_rev > corr_v:
             output_parameters = R_est_rev, estdx_ds_rev, reflect_rev, corr_v_rev
 
@@ -62,7 +55,7 @@ def align_ds_volumes(vol1_ds, vol2_ds, Nprojs=50, log=None, show_log=False):
 
 
 def calculate_alignment_parameters(vol1_ds, vol2_ds, R_est, R_est_J):
-    vol2_aligned_ds = fastrotate3d.fastrotate3d(vol2_ds, R_est)  # rotate the original vol_2 back
+    vol2_aligned_ds = fastrotate3d.fastrotate3d(vol2_ds, R_est)
     vol2_aligned_J_ds = fastrotate3d.fastrotate3d(vol2_ds, R_est_J)
 
     vol2_aligned_J_ds = np.flip(vol2_aligned_J_ds, axis=2)
@@ -72,7 +65,7 @@ def calculate_alignment_parameters(vol1_ds, vol2_ds, R_est, R_est_J):
     if np.size(estdx_ds) != 3 or np.size(estdx_J_ds) != 3:
         raise Warning("***** Translation estimation failed *****")
 
-    # Prepare FFTW data to avoid unnecessary calaculations
+    # Prepare FFTW data to avoid unnecessary calaculations:
     vol2_aligned_ds = reshift_vol.reshift_vol_int(vol2_aligned_ds, estdx_ds)
     vol2_aligned_J_ds = reshift_vol.reshift_vol_int(vol2_aligned_J_ds, estdx_J_ds)
 
@@ -128,6 +121,7 @@ def fast_alignment_3d(vol1, vol2, inds_to_align, inds_to_ref, Rots, Nprojs, log=
 
     # Synchronization:
     # A synchronization algorithm is used in order to revel the symmetry elements of the reference projections.
+
     # Estimate X with or without reflection:
     R_tild = R_tild[0]
     X_mat = np.zeros((3, 3, Nprojs))
@@ -249,6 +243,7 @@ def align_volumes(vol1, vol2, opt=None, show_log=True, session=None):
                          Use larger value if alignment fails.
         opt.Nprojs - Number of projections to use for the alignment. Defult is 30.
     """
+    # TODO - put the seed intialization in comment
     np.random.seed(114)
 
     if session is not None:
@@ -273,10 +268,12 @@ def align_volumes(vol1, vol2, opt=None, show_log=True, session=None):
     else:
         downsample = None
 
-    if hasattr(opt, 'align'):
-        align_in_place = opt.align[0]
+    if hasattr(opt, 'options'):
+        align_in_place = opt.options[0]
+        # masking = opt.options[1]
     else:
         align_in_place = True
+        # masking = None
 
     # Validate input:
     # Input volumes must be 3-dimensional, where all dimensions must be equal. This restriction can be removed,
@@ -309,11 +306,11 @@ def align_volumes(vol1, vol2, opt=None, show_log=True, session=None):
         vol2_ds = vol2
 
     # Aligning the downsampled volumes:
-    R_est, estdx_ds, reflect, corr_v = align_ds_volumes(vol1_ds.copy(), vol2_ds.copy(), Nprojs, log=log,
-                                                        show_log=show_log)
+    R_est, estdx_ds, reflect, corr_v = align_ds_volumes(vol1_ds.copy(), vol2_ds.copy(), Nprojs, log=log, show_log=show_log)
     if reflect:
         # vol2_ds = np.flip(vol2_ds, axis=2)
         vol2 = np.flip(vol2, axis=2)
+        print_to_log(log, "---> Volumes are reflected w.r.t each other", show_log=show_log)
     print_to_log(log, f"---> Correlation between downsampled aligned volumes is {corr_v:.4f}", show_log=show_log)
 
     print_to_log(log, "---> Done aligning downsampled volumes\n"

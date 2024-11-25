@@ -1,10 +1,9 @@
 import math
 import time
-# import os
-from chimerax.map_fit import fitcmd
-from chimerax.map_fit.fitmap import map_overlap_and_correlation as calc_overlap_and_corr
-from chimerax.map_data import arraygrid
 import numpy as np
+from chimerax.map_fit import fitcmd
+from chimerax.map_fit.fitmap import map_overlap_and_correlation as calculate_stats
+from chimerax.map_data import arraygrid
 from chimerax.core.errors import UserError
 from . import align_volumes_3d, reshift_vol, fastrotate3d
 from .common_finufft import cryo_downsample, cryo_crop
@@ -34,13 +33,13 @@ def register_emalign_command(logger):
     register('volume emalign', emalign_desc, emalign, logger=logger)
 
 
-def emalign(session, ref_map, query_map, downsample=64, projections=50, show_log=True, show_param=True, refine=False):
+def emalign(session, ref_map, query_map, downsample=64, projections=50, mask=False, show_log=True, show_param=True, refine=False):
     log = session.logger
 
     # TODO add the option to choose whether the correaltion is computed above threshold (like in Fit in Map)
     # Calculate overlap and correlation (calculated using only data above contour level from first map):
     print_to_log(log, "\nStats before alignment with EMalign:")
-    overlap, corr, corr_m = calc_overlap_and_corr(query_map, ref_map, True)
+    overlap, corr, corr_m = calculate_stats(query_map, ref_map, True)
     print_to_log(log, f"correlation = {corr:.4f}, correlation about mean = {corr_m:.4f}, overlap = {overlap:.3f}\n")
 
     ref = ref_map.data
@@ -81,18 +80,20 @@ def emalign(session, ref_map, query_map, downsample=64, projections=50, show_log
 
     if pixel_query > pixel_ref:
         t1 = time.perf_counter()
+
         # Create a copy of the ref_vol to run on:
         ref_vol_copy = ref_vol.copy()
         query_vol_copy = query_vol.copy()
 
-        optimal_radius = find_optimal_radius(ref_vol)
-        r0_factor = optimal_radius / N_ref
+        if mask:
+            optimal_radius = find_optimal_radius(ref_vol)
+            r0_factor = optimal_radius / N_ref
 
-        m1 = fuzzy_mask([N_ref, N_ref, N_ref], dtype=np.float32, r0=r0_factor * N_ref)
-        m2 = fuzzy_mask([N_query, N_query, N_query], dtype=np.float32, r0=r0_factor * N_query)
+            m1 = fuzzy_mask([N_ref, N_ref, N_ref], dtype=np.float32, r0=r0_factor * N_ref)
+            m2 = fuzzy_mask([N_query, N_query, N_query], dtype=np.float32, r0=r0_factor * N_query)
 
-        ref_vol_copy = ref_vol_copy * m1
-        query_vol_copy = query_vol_copy * m2
+            ref_vol_copy = ref_vol_copy * m1
+            query_vol_copy = query_vol_copy * m2
 
         # query_vol has the bigger pixel size ---> downsample ref_vol to N_ref_ds and then crop it to N_query:
         N_ref_ds = math.floor(N_ref * (pixel_ref / pixel_query))
@@ -106,10 +107,14 @@ def emalign(session, ref_map, query_map, downsample=64, projections=50, show_log
         opt.align = [False]
 
         # At this point both volumes are the same dimension
-        bestR, bestdx, reflect, query_vol_aligned = align_volumes_3d.align_volumes(ref_vol_cropped, query_vol_copy,
+        bestR, bestdx, reflect, query_vol_aligned = align_volumes_3d.align_volumes(ref_vol_cropped,
+                                                                                   query_vol_copy,
                                                                                    opt=opt,
                                                                                    show_log=show_log,
                                                                                    session=session)
+        if reflect:
+            print_to_log(log, "---> Flipping query volume before aligning original volumes", show_log=show_log)
+            query_vol = np.flip(query_vol, axis=2)
 
         print_to_log(log, "---> Aligning original different sized volumes\n", show_log=show_log)
 
@@ -125,39 +130,50 @@ def emalign(session, ref_map, query_map, downsample=64, projections=50, show_log
             query_vol_aligned = reshift_vol.reshift_vol(query_vol_aligned, bestdx)
 
         query_vol_aligned = query_vol_aligned.astype(np.float32)
+
         t2 = time.perf_counter()
         print_to_log(log, f"Aligning the volumes using EMalign took {t2 - t1:.2f} seconds\n")
 
     elif pixel_ref > pixel_query:  # ref_vol has the bigger pixel size and the smaller volume size
         t1 = time.perf_counter()
+
         # Create a copy of the query_vol to run align_volumes on:
         ref_vol_copy = ref_vol.copy()
         query_vol_copy = query_vol.copy()
 
-        optimal_radius = find_optimal_radius(query_vol)
-        r0_factor = optimal_radius / N_query
+        if mask:
+            print_to_log(log, f"---> Using masking to clean volumes for more accurate alignment (90% of volumes)", show_log=show_log)
+            optimal_radius = calc_3D_radius(query_vol)
+            r0_factor = optimal_radius / N_query
 
-        m1 = fuzzy_mask([N_ref, N_ref, N_ref], dtype=np.float32, r0=r0_factor * N_ref)
-        m2 = fuzzy_mask([N_query, N_query, N_query], dtype=np.float32, r0=r0_factor * N_query)
+            m1 = fuzzy_mask([N_ref, N_ref, N_ref], dtype=np.float32, r0=r0_factor * N_ref)
+            m2 = fuzzy_mask([N_query, N_query, N_query], dtype=np.float32, r0=r0_factor * N_query)
 
-        ref_vol_copy = ref_vol_copy * m1
-        query_vol_copy = query_vol_copy * m2
+            ref_vol_copy = ref_vol_copy * m1
+            query_vol_copy = query_vol_copy * m2
 
         N_query_ds = math.floor(N_query * (pixel_query / pixel_ref))
-        print_to_log(log, f"---> Size to downsample query map to = {N_query_ds}", show_log=show_log)
+        print_to_log(log, f"---> Size to downsample query volume to = {N_query_ds}", show_log=show_log)
 
-        # Now we downsample the copy of query_vol from N_query to N_query_ds and crop to get the same dimensions:
+        # Downsample the copy of query_vol from N_query to N_query_ds:
         query_vol_copy_ds = cryo_downsample(query_vol_copy, (N_query_ds, N_query_ds, N_query_ds))
         query_vol_copy_cropped = cryo_crop(query_vol_copy_ds.copy(), (N_ref, N_ref, N_ref))
-        print_to_log(log, f"---> Shape of query_vol_cropped: {query_vol_copy_cropped.shape}", show_log=show_log)
+
+        # Crop to get the same dimensions as ref_vol:
+        print_to_log(log, f"---> Shape of cropped query volume: {query_vol_copy_cropped.shape}", show_log=show_log)
         query_vol_copy_cropped = np.ascontiguousarray(query_vol_copy_cropped)
 
-        opt.align = [False]
+        opt.options = [False]
 
-        bestR, bestdx, reflect, vol_aligned = align_volumes_3d.align_volumes(ref_vol_copy, query_vol_copy_cropped,
+        bestR, bestdx, reflect, vol_aligned = align_volumes_3d.align_volumes(ref_vol_copy,
+                                                                             query_vol_copy_cropped,
                                                                              opt=opt,
                                                                              show_log=show_log,
                                                                              session=session)
+
+        if reflect:
+            print_to_log(log, "---> Flipping query volume before aligning original volumes", show_log=show_log)
+            query_vol = np.flip(query_vol, axis=2)
 
         print_to_log(log, "---> Aligning original different sized volumes\n", show_log=show_log)
 
@@ -173,6 +189,7 @@ def emalign(session, ref_map, query_map, downsample=64, projections=50, show_log
             query_vol_aligned = reshift_vol.reshift_vol(query_vol_aligned, bestdx)
 
         query_vol_aligned = query_vol_aligned.astype(np.float32)
+
         t2 = time.perf_counter()
         print_to_log(log, f"Aligning the volumes using EMalign took {t2 - t1:.2f} seconds\n")
 
@@ -201,7 +218,7 @@ def emalign(session, ref_map, query_map, downsample=64, projections=50, show_log
 
     # Calculate overlap and correlation (calculated using only data above contour level from first map):
     print_to_log(log, "Stats after applying the transformations:")
-    overlap, corr, corr_m = calc_overlap_and_corr(query_map, ref_map, True)
+    overlap, corr, corr_m = calculate_stats(query_map, ref_map, True)
     print_to_log(log, f"correlation = {corr:.4f}, correlation about mean = {corr_m:.4f}, overlap = {overlap:.3f}\n")
 
     # Perform additional refinement with Fit in Map:
@@ -217,6 +234,45 @@ def emalign(session, ref_map, query_map, downsample=64, projections=50, show_log
 # -------------------------------------------------------------------------------------------------------------------- #
 # --------------------------------------------- Helper Functions: ---------------------------------------------------- #
 # -------------------------------------------------------------------------------------------------------------------- #
+def generate_points_and_distances(shape):
+    x, y, z = np.indices(shape)
+    center = np.array(shape) // 2
+    distances = np.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2 + (z - center[2]) ** 2)
+    points = np.column_stack((x.flatten(), y.flatten(), z.flatten()))
+    distances = distances.flatten()
+    return points, distances
+
+
+def calc_3D_radius(density_map, energy_fraction=0.90):
+    shape = density_map.shape
+    # print("Create a list of all points and their distances from the center")
+    points, distances = generate_points_and_distances(shape)
+
+    # Compute the energy at each point
+    # print("Compute the total energy")
+    energy_values = density_map.flatten() ** 2
+
+    # Sort distances and corresponding energy values
+    # print("Sort distances and corresponding energy values")
+    sorted_indices = np.argsort(distances)
+    sorted_distances = distances[sorted_indices]
+    sorted_energy_values = energy_values[sorted_indices]
+
+    # Compute the cumulative energy
+    # print("Compute cumulative energy")
+    cumulative_energy = np.cumsum(sorted_energy_values)
+
+    # Total energy
+    total_energy = cumulative_energy[-1]
+
+    # Find the radius where cumulative energy reaches the specified fraction
+    # print("Find the radius where cumulative energy reaches the specified fraction")
+    target_energy = total_energy * energy_fraction
+    radius_index = np.searchsorted(cumulative_energy, target_energy)
+
+    return sorted_distances[radius_index]
+
+
 def find_knee(cumsum_signal):
     """
     Find the knee point in the cumulative sum signal by calculating the maximum distance
