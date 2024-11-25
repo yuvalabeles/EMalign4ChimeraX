@@ -3,6 +3,8 @@
 
 import cmath
 import math
+import time
+
 import numpy as np
 from .commonline_R2 import cryo_normalize
 from .common_finufft import cryo_pft
@@ -49,7 +51,7 @@ def compute_commonlines_aux(Rj, candidate_rots, L):
     return Ckj, Cjk, Mkj
 
 
-def align_projection(projs, vol, inds_ref, opt=None, log=None, show_log=False):
+def align_projection(projs, vol, inds_ref, starting_t, opt=None, log=None, show_log=False):
     """
     This function aligns given projection in a given volume.
     This is a secondary algorithm for cryo_align_vols.
@@ -101,20 +103,20 @@ def align_projection(projs, vol, inds_ref, opt=None, log=None, show_log=False):
     L = 360
 
     # Compute polar Fourier transform of projs:
-    print_to_log(log, f"---> Computing polar Fourier transform of unaligned query projections", show_log=show_log)
+    print_to_log(log, f"{get_time_stamp(starting_t)} Computing polar Fourier transform of unaligned query projections", show_log=show_log)
     projs_hat = cryo_pft(projs, n_r, L)[0]
     # Normalize polar Fourier transforms:
-    print_to_log(log, f"---> Normalizing the polar Fourier transform of unaligned query projections", show_log=show_log)
+    print_to_log(log, f"{get_time_stamp(starting_t)} Normalizing the polar Fourier transform of unaligned query projections", show_log=show_log)
     projs_hat = cryo_normalize(projs_hat)
     n_projs = np.size(projs_hat, 2)
 
     # Generate candidate rotations and reference projections:
-    print_to_log(log, f"---> Generating {Nprojs} reference projections", show_log=show_log)
+    print_to_log(log, f"{get_time_stamp(starting_t)} Generating {Nprojs} reference projections", show_log=show_log)
     if canrots == 0:
         Rots = genRotationsGrid(75)
     candidate_rots = Rots
     Nrot = np.size(candidate_rots, 2)
-    print_to_log(log, f"---> Using {Nrot} candidate rotations for the alignment", show_log=show_log)
+    print_to_log(log, f"{get_time_stamp(starting_t)} Using {Nrot} candidate rotations for the alignment", show_log=show_log)
     rots_ref = Rots[:, :, inds_ref]
 
     ref_projs = cryo_project(vol, rots_ref)
@@ -122,15 +124,15 @@ def align_projection(projs, vol, inds_ref, opt=None, log=None, show_log=False):
     rots_ref = np.transpose(rots_ref, (1, 0, 2))  # the true rots
 
     # Compute polar Fourier transform of reference projections:
-    print_to_log(log, f"---> Computing polar Fourier transform of reference projections", show_log=show_log)
+    print_to_log(log, f"{get_time_stamp(starting_t)} Computing polar Fourier transform of reference projections", show_log=show_log)
     refprojs_hat = cryo_pft(ref_projs, n_r, L)[0]
 
     # Normalize polar Fourier transforms:
-    print_to_log(log, f"---> Normalizing the polar Fourier transform of reference projections", show_log=show_log)
+    print_to_log(log, f"{get_time_stamp(starting_t)} Normalizing the polar Fourier transform of reference projections", show_log=show_log)
     refprojs_hat = cryo_normalize(refprojs_hat)
 
     # Compute the common lines between the candidate rotations and the references:
-    print_to_log(log, f"---> Computing the common lines between reference and unaligned projections", show_log=show_log)
+    print_to_log(log, f"{get_time_stamp(starting_t)} Computing the common lines between reference and unaligned projections", show_log=show_log)
 
     # t1 = time.perf_counter()
     Ckj = (-1) * np.ones((Nrot, Nprojs), dtype=int)
@@ -185,7 +187,7 @@ def align_projection(projs, vol, inds_ref, opt=None, log=None, show_log=False):
 
     # Main loop-compute the cross correlation:
     # computing the correlation between the common line, first choose the best shift, and then chose the best rotation.
-    print_to_log(log, f"---> Aligning unaligned projections using reference projections", show_log=show_log)
+    print_to_log(log, f"{get_time_stamp(starting_t)} Aligning unaligned projections using reference projections", show_log=show_log)
     Rots_est = np.zeros((3, 3, n_projs))
     corrs = np.zeros((n_projs, 2))  # statistics on common-lines matching
     shifts = np.zeros((2, n_projs))
@@ -214,3 +216,13 @@ def align_projection(projs, vol, inds_ref, opt=None, log=None, show_log=False):
 def print_to_log(log, msg, show_log=True):
     if show_log:
         log.info(msg)
+
+
+def get_time_stamp(starting_t):
+    full_t = (time.perf_counter() - starting_t) / 60
+    t_minutes = math.floor(full_t)
+    t_seconds = (full_t - t_minutes) * 60
+    t_minutes_stamp = "0" + str(t_minutes) if t_minutes < 10 else str(t_minutes)
+    t_seconds_stamp = str(t_seconds)[0:2] if t_seconds >= 10 else "0" + str(t_seconds)[0]
+    time_stamp = t_minutes_stamp + ":" + t_seconds_stamp + " |  "
+    return time_stamp

@@ -103,6 +103,8 @@ class EMalignDialog(ToolInstance):
         self._options_panel = p = CollapsiblePanel(parent, title=None)
         f = p.content_area
 
+        # TODO - change layout of downsample checkboxes to be horizontal instead of vertical
+
         header_dns = EntriesRow(f, 'Downsample:')
         s_real = EntriesRow(f, True, 'None (use actual size)')
         s_64 = EntriesRow(f, False, '64')
@@ -126,7 +128,7 @@ class EMalignDialog(ToolInstance):
             self._downsample_128_frame.setEnabled(False)
             self._downsample_256_frame.setEnabled(False)
 
-        # TODO change back to these default values - projections=50, fitmap=True, log=False
+        # TODO - change back to these default values: projections=50, fitmap=True, log=False, masking=TBD
 
         header_proj = EntriesRow(f, 'Projections:')
         per = EntriesRow(f, True, '25 (fast)', False, '50 (default)', False, '125 (for noisier data)')

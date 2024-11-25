@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+import math
+import time
 import numpy as np
 from numpy import linalg as la
 from .common_finufft import cryo_downsample
@@ -18,9 +19,12 @@ DX_IDENTITY = [0, 0, 0]
 REFLECT_IDENTITY = 0
 
 
-def align_ds_volumes(vol1_ds, vol2_ds, Nprojs=50, log=None, show_log=False):
+def align_ds_volumes(vol1_ds, vol2_ds, Nprojs=50, starting_t=0.0, log=None, show_log=False, reselect_random=True):
+    if reselect_random:
+        print_to_log(log, f"--:-- | Selecting random rotation matrices and alignning downsampled volumes:", show_log=show_log)
+
     corr_ds_before = round(calculate_chimerax_correlation(vol1_ds, vol2_ds, center_data=False), 4)
-    print_to_log(log, f"---> Correlation between downsampled volumes before alignment is {corr_ds_before:.4f}", show_log=show_log)
+    print_to_log(log, f"--:-- | Correlation between downsampled volumes before alignment is {corr_ds_before:.4f}", show_log=show_log)
 
     # Generating 15236 rotation matrices (3x3) into Rots (3x3x15236):
     Rots = genRotationsGrid(75)
@@ -28,12 +32,12 @@ def align_ds_volumes(vol1_ds, vol2_ds, Nprojs=50, log=None, show_log=False):
     # Extracting the number of rotations we generated into sz_Rots: (15236)
     sz_Rots = np.size(Rots, 2)
 
-    print_to_log(log, f"---> Generating {Nprojs} reference projections", show_log=show_log)
+    print_to_log(log, f"{get_time_stamp(starting_t)} Generating {Nprojs} reference projections", show_log=show_log)
     rand_inds = np.random.randint(sz_Rots, size=Nprojs * 2)
     inds_to_align = rand_inds[0:Nprojs]
     inds_to_ref = rand_inds[Nprojs:]
 
-    R_est, R_est_J = fast_alignment_3d(vol1_ds, vol2_ds, inds_to_align, inds_to_ref, Rots, Nprojs, log=log, show_log=show_log)
+    R_est, R_est_J = fast_alignment_3d(vol1_ds, vol2_ds, inds_to_align, inds_to_ref, Rots, Nprojs, starting_t, log=log, show_log=show_log)
     R_est, estdx_ds, reflect, corr_v = calculate_alignment_parameters(vol1_ds, vol2_ds, R_est, R_est_J)
 
     output_parameters = R_est, estdx_ds, reflect, corr_v
@@ -41,15 +45,19 @@ def align_ds_volumes(vol1_ds, vol2_ds, Nprojs=50, log=None, show_log=False):
     # We want to try the reverse matrices assignment if the corr improved in less than 10%:
     corr_goal = corr_ds_before * 1.10
     if corr_v < corr_goal:
-        R_est_rev, R_est_J_rev = fast_alignment_3d(vol1_ds, vol2_ds, inds_to_ref, inds_to_align, Rots, Nprojs, log=log, show_log=False)
+        R_est_rev, R_est_J_rev = fast_alignment_3d(vol1_ds, vol2_ds, inds_to_ref, inds_to_align, Rots, Nprojs, starting_t, log=log, show_log=False)
         R_est_rev, estdx_ds_rev, reflect_rev, corr_v_rev = calculate_alignment_parameters(vol1_ds, vol2_ds, R_est_rev, R_est_J_rev)
 
         if corr_v_rev > corr_v:
             output_parameters = R_est_rev, estdx_ds_rev, reflect_rev, corr_v_rev
 
-    # if output_parameters[3] < corr_ds_before:
-    #     # In the case where the results are less correlated than original volumes, keep original alignment:
-    #     output_parameters = R_IDENTITY, DX_IDENTITY, REFLECT_IDENTITY, corr_ds_before
+    if output_parameters[3] < corr_goal and reselect_random:
+        # In the case where the results are still not well aligned, try another random selection and run just once more:
+        print_to_log(log, f"--:-- | Re-selecting random rotation matrices and alignning downsampled volumes again:", show_log=show_log)
+        R_est_1, estdx_ds_1, reflect_1, corr_v_1 = align_ds_volumes(vol1_ds, vol2_ds, starting_t=starting_t, Nprojs=Nprojs, log=log, show_log=show_log, reselect_random=False)
+
+        if corr_v_1 > output_parameters[3]:
+            output_parameters = R_est_1, estdx_ds_1, reflect_1, corr_v_1
 
     return output_parameters[0], output_parameters[1], output_parameters[2], output_parameters[3]
 
@@ -86,7 +94,7 @@ def calculate_alignment_parameters(vol1_ds, vol2_ds, R_est, R_est_J):
     return R_est, estdx_ds, reflect, corr_v
 
 
-def fast_alignment_3d(vol1, vol2, inds_to_align, inds_to_ref, Rots, Nprojs, log=None, show_log=False):
+def fast_alignment_3d(vol1, vol2, inds_to_align, inds_to_ref, Rots, Nprojs, starting_t, log=None, show_log=False):
     """
     This function does the work for align_volumes.
 
@@ -116,8 +124,8 @@ def fast_alignment_3d(vol1, vol2, inds_to_align, inds_to_ref, Rots, Nprojs, log=
     opt.Nprojs = Nprojs
     opt.Rots = Rots
 
-    print_to_log(log, "---> Aligning reference projections of query map to reference map", show_log=show_log)
-    R_tild = align_projection(ref_projs, vol1, inds_to_ref, opt, log=log, show_log=show_log)  # size (3,3,N_projs)
+    print_to_log(log, f"{get_time_stamp(starting_t)} Aligning reference projections of query map to reference map", show_log=show_log)
+    R_tild = align_projection(ref_projs, vol1, inds_to_ref, starting_t, opt, log=log, show_log=show_log)  # size (3,3,N_projs)
 
     # Synchronization:
     # A synchronization algorithm is used in order to revel the symmetry elements of the reference projections.
@@ -213,7 +221,7 @@ def fast_alignment_3d(vol1, vol2, inds_to_align, inds_to_ref, Rots, Nprojs, log=
 
 
 # %%
-def align_volumes(vol1, vol2, opt=None, show_log=True, session=None):
+def align_volumes(vol1, vol2, starting_t=None, opt=None, show_log=True, session=None):
     """
     This function aligns vol2 according to vol1.
     Aligning vol2 to vol1 by finding the relative rotation, translation and reflection between vol1 and vol2,
@@ -243,8 +251,8 @@ def align_volumes(vol1, vol2, opt=None, show_log=True, session=None):
                          Use larger value if alignment fails.
         opt.Nprojs - Number of projections to use for the alignment. Defult is 30.
     """
-    # TODO - put the seed intialization in comment
-    np.random.seed(114)
+    # TODO - put the seed intialization in comment when all testing is finished
+    # np.random.seed(114)
 
     if session is not None:
         log = session.logger
@@ -258,6 +266,9 @@ def align_volumes(vol1, vol2, opt=None, show_log=True, session=None):
     if opt is None:
         opt = Struct()
 
+    if starting_t is None:
+        starting_t = time.perf_counter()
+
     if hasattr(opt, 'Nprojs'):
         Nprojs = opt.Nprojs
     else:
@@ -266,7 +277,7 @@ def align_volumes(vol1, vol2, opt=None, show_log=True, session=None):
     if hasattr(opt, 'downsample'):
         downsample = opt.downsample
     else:
-        downsample = None
+        downsample = 64
 
     if hasattr(opt, 'options'):
         align_in_place = opt.options[0]
@@ -291,44 +302,44 @@ def align_volumes(vol1, vol2, opt=None, show_log=True, session=None):
         n_ds = downsample
         if downsample is None:
             assert n <= 256, "Input volume is more than 256 pixels, must downsample"
-            print_to_log(log, f"---> Downsampling volumes from {n} to {n_ds} pixels", show_log=show_log)
+            print_to_log(log, f"{get_time_stamp(starting_t)} Downsampling volumes from {n},{n},{n} to {n_ds},{n_ds},{n_ds}", show_log=show_log)
             vol1_ds = cryo_downsample(vol1, (n_ds, n_ds, n_ds))
             vol2_ds = cryo_downsample(vol2, (n_ds, n_ds, n_ds))
         else:
             assert downsample <= n, "Downsample must be less than input volume size"
-            print_to_log(log, f"---> Downsampling volumes from {n} to {n_ds} pixels", show_log=show_log)
+            print_to_log(log, f"{get_time_stamp(starting_t)} Downsampling volumes from {n},{n},{n} to {n_ds},{n_ds},{n_ds}", show_log=show_log)
             vol1_ds = cryo_downsample(vol1, (n_ds, n_ds, n_ds))
             vol2_ds = cryo_downsample(vol2, (n_ds, n_ds, n_ds))
-        print_to_log(log, f"---> Referencing volumes sized ({n_ds},{n_ds},{n_ds})", show_log=show_log)
+        # print_to_log(log, f"{get_time_stamp(starting_t)} Referencing volumes sized {n_ds},{n_ds},{n_ds}", show_log=show_log)
     else:
         assert n_1[0] == n_2[0], "ERROR"
         vol1_ds = vol1
         vol2_ds = vol2
 
     # Aligning the downsampled volumes:
-    R_est, estdx_ds, reflect, corr_v = align_ds_volumes(vol1_ds.copy(), vol2_ds.copy(), Nprojs, log=log, show_log=show_log)
-    if reflect:
-        # vol2_ds = np.flip(vol2_ds, axis=2)
-        vol2 = np.flip(vol2, axis=2)
-        print_to_log(log, "---> Volumes are reflected w.r.t each other", show_log=show_log)
-    print_to_log(log, f"---> Correlation between downsampled aligned volumes is {corr_v:.4f}", show_log=show_log)
+    R_est, estdx_ds, reflect, corr_v = align_ds_volumes(vol1_ds.copy(), vol2_ds.copy(), Nprojs, starting_t=starting_t, log=log, show_log=show_log)
 
-    print_to_log(log, "---> Done aligning downsampled volumes\n"
-                      "---> Applying estimated rotation to volumes", show_log=show_log)
-    # Refinement option is controled from emalign_cmd, so for now:
-    bestR = R_est
+    if reflect:
+        vol2 = np.flip(vol2, axis=2)
+        if align_in_place:
+            print_to_log(log, f"{get_time_stamp(starting_t)} Flipping query volume before alignment", show_log=show_log)
+
+    print_to_log(log, f"{get_time_stamp(starting_t)} Correlation between downsampled aligned volumes is {corr_v:.4f}", show_log=show_log)
+
+    print_to_log(log, f"{get_time_stamp(starting_t)} Applying the calculated rotation to the original volume", show_log=show_log)
+    bestR = R_est  # refinement option is controled from emalign_cmd, so for now R_est is the best rotation
     vol2aligned = fastrotate3d.fastrotate3d(vol2, bestR)
 
-    print_to_log(log, "---> Estimating shift for volumes", show_log=show_log)
+    print_to_log(log, f"{get_time_stamp(starting_t)} Estimating shift for the original volume", show_log=show_log)
     bestdx = register_translations_3d(vol1, vol2aligned)
 
     if not align_in_place:
         # When original volumes are of different sizes, we adjust the translations and align the volumes in emalign_cmd:
-        translation_msg = f"---> Translations before pixel adjustment: [{bestdx[0]:.3f}, {bestdx[1]:.3f}, {bestdx[2]:.3f}]"
+        translation_msg = f"{get_time_stamp(starting_t)} Translations before pixel adjustment: [{bestdx[0]:.3f}, {bestdx[1]:.3f}, {bestdx[2]:.3f}]"
         print_to_log(log, translation_msg, show_log=show_log)
         vol2aligned = vol2
     else:
-        print_to_log(log, "---> Translating volumes\n", show_log=show_log)
+        print_to_log(log, f"{get_time_stamp(starting_t)} Translating the original volume", show_log=show_log)
         if (np.round(bestdx) == bestdx).all():
             # Use fast method:
             vol2aligned = reshift_vol.reshift_vol_int(vol2aligned, bestdx)
@@ -388,3 +399,13 @@ def calculate_chimerax_correlation(map1, map2, center_data=True):
 def print_to_log(log, msg, show_log=True):
     if show_log:
         log.info(msg)
+
+
+def get_time_stamp(starting_t):
+    full_t = (time.perf_counter() - starting_t) / 60
+    t_minutes = math.floor(full_t)
+    t_seconds = (full_t - t_minutes) * 60
+    t_minutes_stamp = "0" + str(t_minutes) if t_minutes < 10 else str(t_minutes)
+    t_seconds_stamp = str(t_seconds)[0:2] if t_seconds >= 10 else "0" + str(t_seconds)[0]
+    time_stamp = t_minutes_stamp + ":" + t_seconds_stamp + " |  "
+    return time_stamp
