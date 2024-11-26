@@ -86,12 +86,13 @@ class EMalignDialog(ToolInstance):
         space = EntriesRow(f, ' ')
         downsample_guide = EntriesRow(f, 'Downsample - dimension to downsample input volumes to speed up computations. ')
         projection_guide = EntriesRow(f, 'Projections - number of projections to use for alignment. ')
+        masking_guide = EntriesRow(f, 'Masking - using only center 90% of the volumes energy to calculate the alignment. ')
         note = EntriesRow(f, '* the alignment may take a few minutes, don\'t click the screen while EMalign is running.')
-        # TODO - add to the help guide a short explanation on masking
 
+        self.space_frame = space.frame
         self.downsample_guide_frame = downsample_guide.frame
         self.projection_guide_frame = projection_guide.frame
-        self.space_frame = space.frame
+        self.masking_guide_frame = masking_guide.frame
         self.note_frame = note.frame
 
         return g
@@ -128,20 +129,18 @@ class EMalignDialog(ToolInstance):
             self._downsample_128_frame.setEnabled(False)
             self._downsample_256_frame.setEnabled(False)
 
-        # TODO - change back to these default values: projections=50, fitmap=True, log=False, masking=TBD
-
         header_proj = EntriesRow(f, 'Projections:')
-        per = EntriesRow(f, True, '25 (fast)', False, '50 (default)', False, '125 (for noisier data)')
+        per = EntriesRow(f, False, '25 (fast)', True, '50 (default)', False, '125 (for noisier data)')
         self._projections_25, self._projections_50, self._projections_125 = per.values
         radio_buttons(self._projections_25, self._projections_50, self._projections_125)
         self._projections_frame = per.frame
         self.header_proj_frame = header_proj.frame
 
-        use_fit_map = EntriesRow(f, False, 'Use Fit in Map to perform additional refinement (recommended)')
+        use_fit_map = EntriesRow(f, True, 'Use Fit in Map for final refinement (recommended)')
         self._use_fit_map = use_fit_map.values[0]
         self._use_fit_map_frame = use_fit_map.frame
 
-        log = EntriesRow(f, True, 'Display detailed log')
+        log = EntriesRow(f, False, 'Display detailed log')
         self._display_log = log.values[0]
         self._display_log_frame = log.frame
 

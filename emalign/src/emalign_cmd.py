@@ -214,7 +214,6 @@ def emalign(session, ref_map, query_map, downsample=64, projections=50, mask=Fal
 
     t2 = time.perf_counter()
     print_to_log(log, f"Aligning the volumes using EMalign took {t2 - t1:.2f} seconds\n")
-
     print_param(log, bestR, bestdx, reflect, show_param)
 
     # Create GridData object with aligned query_vol but with the original query_map parameters:
@@ -331,6 +330,5 @@ def get_time_stamp(starting_t):
     t_seconds = (full_t - t_minutes) * 60
     t_minutes_stamp = "0" + str(t_minutes) if t_minutes < 10 else str(t_minutes)
     t_seconds_stamp = str(t_seconds)[0:5] if t_seconds >= 10 else "0" + str(t_seconds)[0:4]
-    # t_milliseconds_stamp = str(t_seconds)[2:5] if t_seconds >= 10 else "0" + str(t_seconds)[1:4]
     time_stamp = t_minutes_stamp + ":" + t_seconds_stamp + " |  "
     return time_stamp
