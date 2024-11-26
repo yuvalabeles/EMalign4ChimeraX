@@ -17,14 +17,15 @@ from . import reshift_vol
 R_IDENTITY = np.eye(3)
 DX_IDENTITY = [0, 0, 0]
 REFLECT_IDENTITY = 0
+EMPTY_SPACE = "_______ | "
 
 
 def align_ds_volumes(vol1_ds, vol2_ds, Nprojs=50, starting_t=0.0, log=None, show_log=False, reselect_random=True):
     if reselect_random:
-        print_to_log(log, f"--:-- | Selecting random rotation matrices and alignning downsampled volumes:", show_log=show_log)
+        print_to_log(log, EMPTY_SPACE + f"Alignning downsampled volumes:", show_log=show_log)
 
     corr_ds_before = round(calculate_chimerax_correlation(vol1_ds, vol2_ds, center_data=False), 4)
-    print_to_log(log, f"--:-- | Correlation between downsampled volumes before alignment is {corr_ds_before:.4f}", show_log=show_log)
+    print_to_log(log, EMPTY_SPACE + f"Correlation between downsampled volumes before alignment: {corr_ds_before:.4f}", show_log=show_log)
 
     # Generating 15236 rotation matrices (3x3) into Rots (3x3x15236):
     Rots = genRotationsGrid(75)
@@ -53,7 +54,7 @@ def align_ds_volumes(vol1_ds, vol2_ds, Nprojs=50, starting_t=0.0, log=None, show
 
     if output_parameters[3] < corr_goal and reselect_random:
         # In the case where the results are still not well aligned, try another random selection and run just once more:
-        print_to_log(log, f"--:-- | Re-selecting random rotation matrices and alignning downsampled volumes again:", show_log=show_log)
+        print_to_log(log, EMPTY_SPACE + f"Re-alignning downsampled volumes:", show_log=show_log)
         R_est_1, estdx_ds_1, reflect_1, corr_v_1 = align_ds_volumes(vol1_ds, vol2_ds, starting_t=starting_t, Nprojs=Nprojs, log=log, show_log=show_log, reselect_random=False)
 
         if corr_v_1 > output_parameters[3]:
@@ -324,7 +325,7 @@ def align_volumes(vol1, vol2, starting_t=None, opt=None, show_log=True, session=
         if align_in_place:
             print_to_log(log, f"{get_time_stamp(starting_t)} Flipping query volume before alignment", show_log=show_log)
 
-    print_to_log(log, f"{get_time_stamp(starting_t)} Correlation between downsampled aligned volumes is {corr_v:.4f}", show_log=show_log)
+    print_to_log(log, EMPTY_SPACE + f"Correlation between downsampled aligned volumes: {corr_v:.4f}", show_log=show_log)
 
     print_to_log(log, f"{get_time_stamp(starting_t)} Applying the calculated rotation to the original volume", show_log=show_log)
     bestR = R_est  # refinement option is controled from emalign_cmd, so for now R_est is the best rotation
@@ -335,11 +336,11 @@ def align_volumes(vol1, vol2, starting_t=None, opt=None, show_log=True, session=
 
     if not align_in_place:
         # When original volumes are of different sizes, we adjust the translations and align the volumes in emalign_cmd:
-        translation_msg = f"{get_time_stamp(starting_t)} Translations before pixel adjustment: [{bestdx[0]:.3f}, {bestdx[1]:.3f}, {bestdx[2]:.3f}]"
+        translation_msg = EMPTY_SPACE + f"Shift before pixel adjustment: [{bestdx[0]:.3f}, {bestdx[1]:.3f}, {bestdx[2]:.3f}]"
         print_to_log(log, translation_msg, show_log=show_log)
         vol2aligned = vol2
     else:
-        print_to_log(log, f"{get_time_stamp(starting_t)} Translating the original volume", show_log=show_log)
+        print_to_log(log, f"{get_time_stamp(starting_t)} Shifting the original volume\n", show_log=show_log)
         if (np.round(bestdx) == bestdx).all():
             # Use fast method:
             vol2aligned = reshift_vol.reshift_vol_int(vol2aligned, bestdx)
@@ -406,6 +407,6 @@ def get_time_stamp(starting_t):
     t_minutes = math.floor(full_t)
     t_seconds = (full_t - t_minutes) * 60
     t_minutes_stamp = "0" + str(t_minutes) if t_minutes < 10 else str(t_minutes)
-    t_seconds_stamp = str(t_seconds)[0:2] if t_seconds >= 10 else "0" + str(t_seconds)[0]
+    t_seconds_stamp = str(t_seconds)[0:5] if t_seconds >= 10 else "0" + str(t_seconds)[0:4]
     time_stamp = t_minutes_stamp + ":" + t_seconds_stamp + " |  "
     return time_stamp

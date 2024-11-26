@@ -132,7 +132,7 @@ def align_projection(projs, vol, inds_ref, starting_t, opt=None, log=None, show_
     refprojs_hat = cryo_normalize(refprojs_hat)
 
     # Compute the common lines between the candidate rotations and the references:
-    print_to_log(log, f"{get_time_stamp(starting_t)} Computing the common lines between reference and unaligned projections", show_log=show_log)
+    print_to_log(log, f"{get_time_stamp(starting_t)} Computing the common lines between the projections", show_log=show_log)
 
     # t1 = time.perf_counter()
     Ckj = (-1) * np.ones((Nrot, Nprojs), dtype=int)
@@ -223,6 +223,6 @@ def get_time_stamp(starting_t):
     t_minutes = math.floor(full_t)
     t_seconds = (full_t - t_minutes) * 60
     t_minutes_stamp = "0" + str(t_minutes) if t_minutes < 10 else str(t_minutes)
-    t_seconds_stamp = str(t_seconds)[0:2] if t_seconds >= 10 else "0" + str(t_seconds)[0]
+    t_seconds_stamp = str(t_seconds)[0:5] if t_seconds >= 10 else "0" + str(t_seconds)[0:4]
     time_stamp = t_minutes_stamp + ":" + t_seconds_stamp + " |  "
     return time_stamp

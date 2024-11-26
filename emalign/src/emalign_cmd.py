@@ -39,14 +39,11 @@ def emalign(session, ref_map, query_map, downsample=64, projections=50, mask=Fal
     # TODO add the option to choose whether the correaltion is computed above threshold (like in Fit in Map)
 
     # Calculate overlap and correlation (calculated using only data above contour level from first map):
-    print_to_log(log, "\nStats before alignment with EMalign:")
+    print_to_log(log, "Stats before alignment with EMalign:")
     overlap, corr, corr_m = calculate_stats(query_map, ref_map, True)
     print_to_log(log, f"correlation = {corr:.4f}, correlation about mean = {corr_m:.4f}, overlap = {overlap:.3f}\n")
 
-    print_to_log(log, "-" * 100 + "\nDetailed Log:\n" + "-" * 100, show_log=show_log)
-    # print_to_log(log, "-" * 100, show_log=show_log)
-    # print_to_log(log, "Detailed Log:", show_log=show_log)
-    # print_to_log(log, "-" * 100, show_log=show_log)
+    print_to_log(log, "-" * 17 + "\nDetailed Log:\n" + "-" * 17, show_log=show_log)
 
     ref = ref_map.data
     query = query_map.data
@@ -93,7 +90,7 @@ def emalign(session, ref_map, query_map, downsample=64, projections=50, mask=Fal
 
     if pixel_query > pixel_ref:
         if mask:
-            print_to_log(log, f"{get_time_stamp(t1)} Applying masking to align using only 90% of the volumes energy", show_log=show_log)
+            print_to_log(log, f"{get_time_stamp(t1)} Using masking to align center 90% of the volumes energy", show_log=show_log)
             optimal_radius = calc_3D_radius(ref_vol)
             r0_factor = optimal_radius / N_ref
 
@@ -134,7 +131,7 @@ def emalign(session, ref_map, query_map, downsample=64, projections=50, mask=Fal
         query_vol_aligned = fastrotate3d.fastrotate3d(query_vol, bestR)
 
         # Translate the volumes:
-        print_to_log(log, f"{get_time_stamp(t1)} Translating the original volume", show_log=show_log)
+        print_to_log(log, f"{get_time_stamp(t1)} Shifting the original volume\n", show_log=show_log)
         bestdx = (pixel_query / pixel_ref) * bestdx
         if (np.round(bestdx) == bestdx).all():
             # Use fast method:
@@ -146,7 +143,7 @@ def emalign(session, ref_map, query_map, downsample=64, projections=50, mask=Fal
 
     elif pixel_ref > pixel_query:  # ref_vol has the bigger pixel size and the smaller volume size
         if mask:
-            print_to_log(log, f"{get_time_stamp(t1)} Applying masking to align using only 90% of the volumes energy", show_log=show_log)
+            print_to_log(log, f"{get_time_stamp(t1)} Using masking to align center 90% of the volumes energy", show_log=show_log)
             optimal_radius = calc_3D_radius(query_vol)
             r0_factor = optimal_radius / N_query
 
@@ -186,7 +183,7 @@ def emalign(session, ref_map, query_map, downsample=64, projections=50, mask=Fal
         query_vol_aligned = fastrotate3d.fastrotate3d(query_vol, bestR)
 
         # Translate the volumes:
-        print_to_log(log, f"{get_time_stamp(t1)} Translating the original volume", show_log=show_log)
+        print_to_log(log, f"{get_time_stamp(t1)} Shifting the original volume\n", show_log=show_log)
         bestdx = (pixel_ref / pixel_query) * bestdx
         if (np.round(bestdx) == bestdx).all():
             # Use fast method:
@@ -198,7 +195,7 @@ def emalign(session, ref_map, query_map, downsample=64, projections=50, mask=Fal
 
     else:
         if mask:
-            print_to_log(log, f"{get_time_stamp(t1)} Applying masking to align using only 90% of the volumes energy", show_log=show_log)
+            print_to_log(log, f"{get_time_stamp(t1)} Using masking to align center 90% of the volumes energy", show_log=show_log)
             optimal_radius = calc_3D_radius(query_vol)
             r0_factor = optimal_radius / N_query
 
@@ -216,7 +213,6 @@ def emalign(session, ref_map, query_map, downsample=64, projections=50, mask=Fal
                                                                                    session=session)
 
     t2 = time.perf_counter()
-    print_to_log(log, "-" * 100 + "\n", show_log=show_log)
     print_to_log(log, f"Aligning the volumes using EMalign took {t2 - t1:.2f} seconds\n")
 
     print_param(log, bestR, bestdx, reflect, show_param)
@@ -233,9 +229,10 @@ def emalign(session, ref_map, query_map, downsample=64, projections=50, mask=Fal
     query_map.replace_data(aligned_map_grid_data)
 
     # Calculate overlap and correlation (calculated using only data above contour level from first map):
-    print_to_log(log, "Stats after applying the transformations:")
+    print_to_log(log, "Stats after alignning with EMalign:")
     overlap, corr, corr_m = calculate_stats(query_map, ref_map, True)
-    print_to_log(log, f"correlation = {corr:.4f}, correlation about mean = {corr_m:.4f}, overlap = {overlap:.3f}\n")
+    print_to_log(log, f"correlation = {corr:.4f}, correlation about mean = {corr_m:.4f}, overlap = {overlap:.3f}")
+    print_to_log(log, "-" * 88 + "\n")
 
     # Perform additional refinement with Fit in Map:
     if refine:
@@ -315,12 +312,12 @@ def validate_input(ref_vol, query_vol):
 
 def print_param(log, bestR, bestdx, reflection, show_param):
     if show_param:
-        log.info('Estimated Rotation:')
+        log.info('Rotation:')
         log.info(f'[[{bestR[0, 0]:.3f} {bestR[0, 1]:.3f} {bestR[0, 2]:.3f}],')
         log.info(f'[{bestR[1, 0]:.3f} {bestR[1, 1]:.3f} {bestR[1, 2]:.3f}]')
         log.info(f'[{bestR[2, 0]:.3f} {bestR[2, 1]:.3f} {bestR[2, 2]:.3f}]]')
-        log.info(f'Estimated Translations:\n [{bestdx[0]:.3f}, {bestdx[1]:.3f}, {bestdx[2]:.3f}]')
-        log.info(f'Reflection:   {reflection}\n')
+        log.info(f'Translation:\n [{bestdx[0]:.3f}, {bestdx[1]:.3f}, {bestdx[2]:.3f}]')
+        log.info(f'Reflection:\n {reflection}\n')
 
 
 def print_to_log(log, msg, show_log=True):
@@ -333,6 +330,7 @@ def get_time_stamp(starting_t):
     t_minutes = math.floor(full_t)
     t_seconds = (full_t - t_minutes) * 60
     t_minutes_stamp = "0" + str(t_minutes) if t_minutes < 10 else str(t_minutes)
-    t_seconds_stamp = str(t_seconds)[0:2] if t_seconds >= 10 else "0" + str(t_seconds)[0]
+    t_seconds_stamp = str(t_seconds)[0:5] if t_seconds >= 10 else "0" + str(t_seconds)[0:4]
+    # t_milliseconds_stamp = str(t_seconds)[2:5] if t_seconds >= 10 else "0" + str(t_seconds)[1:4]
     time_stamp = t_minutes_stamp + ":" + t_seconds_stamp + " |  "
     return time_stamp

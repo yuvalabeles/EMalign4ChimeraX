@@ -106,8 +106,8 @@ class EMalignDialog(ToolInstance):
         # TODO - change layout of downsample checkboxes to be horizontal instead of vertical
 
         header_dns = EntriesRow(f, 'Downsample:')
-        s_real = EntriesRow(f, True, 'None (use actual size)')
-        s_64 = EntriesRow(f, False, '64')
+        s_real = EntriesRow(f, False, 'None (use actual size)')
+        s_64 = EntriesRow(f, True, '64')
         s_128 = EntriesRow(f, False, '128')
         s_256 = EntriesRow(f, False, '256')
 
@@ -218,7 +218,7 @@ class EMalignDialog(ToolInstance):
             return
 
     def _gray_out_downsample_options(self):
-        v_size = min(self._r_size, self._q_size)
+        v_size = max(self._r_size, self._q_size)
 
         if v_size < 64:
             ds_values = [True, False, False, False]
@@ -230,8 +230,9 @@ class EMalignDialog(ToolInstance):
             ds_values = [True, True, True, True]
         else:
             ds_values = [False, True, True, True]
-            self._no_downsample.value = False
-            self._downsample_64.value = True
+            if self._no_downsample.value:
+                self._downsample_64.value = True
+                self._no_downsample.value = False
 
         if self._r_size != self._q_size:
             ds_values[0] = False
