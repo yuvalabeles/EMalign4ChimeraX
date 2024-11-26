@@ -13,7 +13,7 @@ from rand_rots import rand_rots
 from src.fastrotate3d import fastrotate3d
 from src.reshift_vol import reshift_vol_int
 
-TEST_PATH = "C:/Users/yuval/anaconda3/Projects/EMalign Project/Test Data/Advanced test data"
+TEST_PATH = "C:/Users/yuval/anaconda3/Projects/EMalign Project/Test Data/Test Cases/A/"
 
 ############################
 # Test for volume alignment:
@@ -24,7 +24,7 @@ TEST_PATH = "C:/Users/yuval/anaconda3/Projects/EMalign Project/Test Data/Advance
 
 def transform_map(map_id):
     print("--> reading map")
-    vol = read_mrc(TEST_PATH + "/" + map_id + '.mrc')
+    vol = read_mrc(TEST_PATH + map_id + '.mrc')
     print("--> transforming map")
     R_true = rand_rots(1).reshape((3, 3))
     vol_c = np.copy(vol)
@@ -37,8 +37,8 @@ def transform_map(map_id):
 
 
 def save_transform_map(transform_vol, map_id):
-    vol_filename = TEST_PATH + "/" + map_id + '.mrc'
-    t_vol_filename = TEST_PATH + "/" + map_id + "_query.mrc"
+    vol_filename = TEST_PATH + map_id + '.mrc'
+    t_vol_filename = TEST_PATH + map_id + "_query.mrc"
 
     # Copy vol2 to save header:
     shutil.copyfile(vol_filename, t_vol_filename)
@@ -52,7 +52,6 @@ def save_transform_map(transform_vol, map_id):
 
 
 if __name__ == '__main__':
-    map_IDs = ["16880", "16902", "16905", "16908", "19195", "19197", "19198", "35413", "35414"]
-    # for map_ID in map_IDs:
-    #     print("Map: " + map_ID)
-    #     transform_map(map_ID)
+    map_IDs = ["2660", "19195", "35413"]
+    for map_ID in map_IDs:
+        print("Map: " + map_ID)

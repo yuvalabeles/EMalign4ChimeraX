@@ -69,7 +69,7 @@ class EMalignDialog(ToolInstance):
 
         rm.value_changed.connect(self._object_chosen)
 
-        mlayout.addStretch(1)  # Extra space at end
+        mlayout.addStretch(1)  # extra space at end
 
         return mf
 
@@ -87,6 +87,7 @@ class EMalignDialog(ToolInstance):
         downsample_guide = EntriesRow(f, 'Downsample - dimension to downsample input volumes to speed up computations. ')
         projection_guide = EntriesRow(f, 'Projections - number of projections to use for alignment. ')
         note = EntriesRow(f, '* the alignment may take a few minutes, don\'t click the screen while EMalign is running.')
+        # TODO - add to the help guide a short explanation on masking
 
         self.downsample_guide_frame = downsample_guide.frame
         self.projection_guide_frame = projection_guide.frame
@@ -102,16 +103,20 @@ class EMalignDialog(ToolInstance):
         self._options_panel = p = CollapsiblePanel(parent, title=None)
         f = p.content_area
 
+        # TODO - change layout of downsample checkboxes to be horizontal instead of vertical
+
         header_dns = EntriesRow(f, 'Downsample:')
-        s_real = EntriesRow(f, True, 'None (use actual size)')
-        s_64 = EntriesRow(f, False, '64')
+        s_real = EntriesRow(f, False, 'None (use actual size)')
+        s_64 = EntriesRow(f, True, '64')
         s_128 = EntriesRow(f, False, '128')
         s_256 = EntriesRow(f, False, '256')
 
         self._no_downsample, self._downsample_64, self._downsample_128, self._downsample_256 = s_real.values[0], s_64.values[0], s_128.values[0], s_256.values[0]
         radio_buttons(self._no_downsample, self._downsample_64, self._downsample_128, self._downsample_256)
+
         self._ds_frames = s_real.frame, s_64.frame, s_128.frame, s_256.frame
         self._no_downsample_frame, self._downsample_64_frame, self._downsample_128_frame, self._downsample_256_frame = self._ds_frames
+
         self._downsample_header_frame = header_dns.frame
 
         vlist = self.session.models.list(type=Volume)
@@ -123,30 +128,32 @@ class EMalignDialog(ToolInstance):
             self._downsample_128_frame.setEnabled(False)
             self._downsample_256_frame.setEnabled(False)
 
+        # TODO - change back to these default values: projections=50, fitmap=True, log=False, masking=TBD
+
         header_proj = EntriesRow(f, 'Projections:')
-        per = EntriesRow(f, False, '25 (fast)', True, '50 (default)', False, '125 (for noisier data)')
+        per = EntriesRow(f, True, '25 (fast)', False, '50 (default)', False, '125 (for noisier data)')
         self._projections_25, self._projections_50, self._projections_125 = per.values
         radio_buttons(self._projections_25, self._projections_50, self._projections_125)
         self._projections_frame = per.frame
         self.header_proj_frame = header_proj.frame
 
-        use_fit_map = EntriesRow(f, True, 'Use Fit in Map to perform additional refinement (recommended)')
+        use_fit_map = EntriesRow(f, False, 'Use Fit in Map to perform additional refinement (recommended)')
         self._use_fit_map = use_fit_map.values[0]
         self._use_fit_map_frame = use_fit_map.frame
 
-        log = EntriesRow(f, False, 'Display detailed log')
+        log = EntriesRow(f, True, 'Display detailed log')
         self._display_log = log.values[0]
         self._display_log_frame = log.frame
 
-        # params = EntriesRow(f, True, 'Display output parameters (rotation, translation, correlation)')
-        # self._display_parameters = params.values[0]
-        # self._display_parameters_frame = params.frame
+        mask = EntriesRow(f, False, 'Use masking prior to the alignment')
+        self._masking = mask.values[0]
+        self._masking_frame = mask.frame
 
         if not vlist:
             self.header_proj_frame.setEnabled(False)
             self._projections_frame.setEnabled(False)
             self._display_log_frame.setEnabled(False)
-            # self._display_parameters_frame.setEnabled(False)
+            self._masking_frame.setEnabled(False)
             self._use_fit_map_frame.setEnabled(False)
 
         if vlist:
@@ -174,12 +181,12 @@ class EMalignDialog(ToolInstance):
         downsample = self._get_downsample()
         projections = self._get_projections()
         show_log = self._display_log.value
-        # show_param = self._display_parameters.value
+        use_masking = self._masking.value
 
-        self._run_emalign(ref_map, query_map, downsample, projections, show_log)
+        self._run_emalign(ref_map, query_map, downsample, projections, show_log, use_masking)
 
-    def _run_emalign(self, ref_map, query_map, downsample, projections, show_log):
-        emalign(self.session, ref_map, query_map, downsample=downsample, projections=projections, show_log=show_log, refine=self._use_fit_map.value)
+    def _run_emalign(self, ref_map, query_map, downsample, projections, show_log, use_masking):
+        emalign(self.session, ref_map, query_map, downsample=downsample, projections=projections, show_log=show_log, refine=self._use_fit_map.value, mask=use_masking)
 
     @classmethod
     def get_singleton(self, session, create=True):
@@ -211,7 +218,7 @@ class EMalignDialog(ToolInstance):
             return
 
     def _gray_out_downsample_options(self):
-        v_size = min(self._r_size, self._q_size)
+        v_size = max(self._r_size, self._q_size)
 
         if v_size < 64:
             ds_values = [True, False, False, False]
@@ -223,8 +230,9 @@ class EMalignDialog(ToolInstance):
             ds_values = [True, True, True, True]
         else:
             ds_values = [False, True, True, True]
-            self._no_downsample.value = False
-            self._downsample_64.value = True
+            if self._no_downsample.value:
+                self._downsample_64.value = True
+                self._no_downsample.value = False
 
         if self._r_size != self._q_size:
             ds_values[0] = False
@@ -233,7 +241,7 @@ class EMalignDialog(ToolInstance):
             self._ds_frames[i].setEnabled(ds_values[i])
 
     def _enable_other_options(self):
-        options = [self._projections_frame, self._display_log_frame, self._use_fit_map_frame, self._downsample_header_frame, self.header_proj_frame]
+        options = [self._projections_frame, self._display_log_frame, self._use_fit_map_frame, self._downsample_header_frame, self.header_proj_frame, self._masking_frame]
         for option in options:
             option.setEnabled(True)
 

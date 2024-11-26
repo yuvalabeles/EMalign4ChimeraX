@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Wed May 26 11:11:19 2021
-
-@author: yaelharpaz1
-"""
 
 import numpy as np
-from numpy.fft import fft, ifft
+# from numpy.fft import fft, ifft
+from scipy.fft import fft, ifft
 import math
 import cmath
 from scipy.spatial.transform import Rotation
@@ -97,22 +93,23 @@ def fastrotateprecomp(SzX, SzY, phi):
     interpolation tables used by fastrotate.
     """
 
-    # Adjust the rotation angle to be between -45 and 45 degrees.
+    # Adjust the rotation angle to be between -45 and 45 degrees:
     [phi, mult90] = adjustrotate(phi)
     phi = np.pi * phi / 180
-    phi = -phi  # To match Yaroslavsky's code which rotates CW.
+    phi = -phi  # to match Yaroslavsky's code which rotates CW
     if np.mod(SzY, 2) == 0:
         cy = SzY / 2 + 1
-        sy = 1 / 2  # By how much should we shift the cy to get the center of the image
+        sy = 1 / 2  # by how much should we shift the cy to get the center of the image
     else:
         cy = (SzY + 1) / 2
         sy = 0
     if np.mod(SzX, 2) == 0:
-        cx = SzX / 2 + 1  # By how much should we shift the cy to get the center of the image
+        cx = SzX / 2 + 1  # by how much should we shift the cy to get the center of the image
         sx = 1 / 2
     else:
         cx = (SzX + 1) / 2
         sx = 0
+
     # Precompte My and Mx:
     My = np.zeros((SzY, SzX)).astype(complex)
     r = np.arange(0, cy).astype(int)
@@ -122,7 +119,7 @@ def fastrotateprecomp(SzX, SzY, phi):
         Ux = u * (x + 1 - cx + sx)
         My[r, x] = np.exp(alpha1 * Ux)
         My[np.arange(SzY - 1, cy - 1, -1).astype(int), x] = np.conj(My[np.arange(1, cy - 2 * sy).astype(int), x])
-    My = My.T  # Remove when implementing using the loops below.
+    My = My.T  # remove when implementing using the loops below (NOTE: loop was removed, keeping comment just in case)
     Mx = np.zeros((SzX, SzY)).astype(complex)
     r = np.arange(0, cx).astype(int)
     u = -math.sin(phi)
@@ -174,7 +171,7 @@ def fastrotate(vol, phi, M=None):
     vol_out = np.zeros((SzX, SzY, SzZ))
 
     for k in range(SzZ):
-        # Rotate by multiples of 90 degrees.
+        # Rotate by multiples of 90 degrees:
         if mult90 == 1:
             vol[:, :, k] = rot90(vol[:, :, k])
         elif mult90 == 2:
