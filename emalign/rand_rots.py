@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Feb 10 18:46:35 2021
-
-@author: yaelharpaz1
-"""
-
 import numpy as np
 
 

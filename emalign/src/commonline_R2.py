@@ -1,45 +1,8 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Feb 10 17:04:47 2021
-
-@author: yaelharpaz1
-"""
 import numpy as np
 import math
 from numpy import linalg as LA
 import warnings
 
-
-# def commonline_R2(Ri,Rj,L):
-#     Ri = np.transpose(Ri)
-#     Rj = np.transpose(Rj)
-
-#     Ri3 = Ri[:,2]
-#     Rj3 = Rj[:,2]
-
-#     clvec = np.array([[Ri3[1]*Rj3[2] - Ri3[2]*Rj3[1]],
-#                       [Ri3[2]*Rj3[0] - Ri3[0]*Rj3[2]],
-#                       [Ri3[0]*Rj3[1] - Ri3[1]*Rj3[0]]])
-
-#     # No need to normalize as the normalization does not affect the atan2 below.
-
-#     cij = (np.transpose(Ri)).dot(clvec)
-#     cji = (np.transpose(Rj)).dot(clvec)
-
-#     alphaij = math.atan2(cij[1], cij[0])
-#     alphaji = math.atan2(cji[1], cji[0])
-
-#     PI = 4*math.atan(1.0)
-#     alphaij = alphaij + PI
-#     alphaji = alphaji +PI
-
-#     l_ij = alphaij/(2*PI)*L
-#     l_ji = alphaji/(2*PI)*L
-
-#     l_ij = int(round(l_ij) % L)
-#     l_ji = int(round(l_ji) % L)
-#     return l_ij, l_ji
 
 def commonline_R2(Ri, Rj, L):
     Ri3 = Ri[2, :]

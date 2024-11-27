@@ -1,8 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import numpy as np
-# from numpy import fft
 from scipy import fft
 from numpy import linalg as LA
 
@@ -34,7 +30,6 @@ class fft_data_class:
         self.omega_z = 2 * np.pi * omega_z / n
 
 
-# %%
 def reshift_vol(vol, s, fft_data=None):
     """
     Shift the volume given by im by the vector s using trigonometric interpolation.
@@ -91,7 +86,6 @@ def reshift_vol(vol, s, fft_data=None):
     return svol
 
 
-# %%
 def reshift_vol_int(vol, s):
     """
     Shift a volume by the vector s (s must be a vector of integers, for non integer shifts use reshift_vol).

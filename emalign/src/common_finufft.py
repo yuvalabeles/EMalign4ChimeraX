@@ -1,8 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import numpy as np
-# from numpy import fft
 from scipy import fft
 import finufft
 import warnings
@@ -35,7 +31,6 @@ def cryo_pft(p, n_r, n_theta):
     freqs *= omega0
     # finufftpy require it to be aligned in fortran order:
     pf = np.empty((n_r * n_theta // 2, n_projs), dtype='complex128', order='F')
-    # finufftpy.nufft2d2many(freqs[0], freqs[1], pf, 1, 1e-15, p):
     p_complex = np.array(p.astype('complex128'))
     for i in range(n_projs):
         pf[:, i] = finufft.nufft2d2(freqs[0], freqs[1], p_complex[:, :, i])
@@ -83,7 +78,6 @@ def cryo_downsample(x, out_shape):
     size_out = np.prod(out_shape[fourier_dims])
 
     fx = cryo_crop(np.fft.fftshift(np.fft.fft2(x, axes=fourier_dims), axes=fourier_dims), out_shape)
-    # out = ifft2(np.fft.ifftshift(fx, axes=fourier_dims), axes=fourier_dims) * (size_out / size_in)
     out = fft.ifft2(np.fft.ifftshift(fx, axes=fourier_dims), axes=fourier_dims) * (size_out / size_in)
 
     return (np.real(out)).astype(dtype_in)
