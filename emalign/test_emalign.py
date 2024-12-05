@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Jan 11 12:55:48 2022
-
-@author: yaelharpaz1
-"""
 import shutil
 import numpy as np
 import mrcfile
@@ -32,11 +25,11 @@ def transform_map(map_id):
     vol_rotated = np.flip(vol_rotated, axis=2)
     vol_rotated = reshift_vol_int(vol_rotated, np.array([-5, 0, 0]))
     print("--> saving transformed map")
-    save_transform_map(vol_rotated, map_id)
+    save_transformed_map(vol_rotated, map_id)
     print("\n")
 
 
-def save_transform_map(transform_vol, map_id):
+def save_transformed_map(transform_vol, map_id):
     vol_filename = TEST_PATH + map_id + '.mrc'
     t_vol_filename = TEST_PATH + map_id + "_query.mrc"
 

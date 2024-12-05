@@ -1,10 +1,6 @@
-# !/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import cmath
 import math
 import time
-
 import numpy as np
 from .commonline_R2 import cryo_normalize
 from .common_finufft import cryo_pft

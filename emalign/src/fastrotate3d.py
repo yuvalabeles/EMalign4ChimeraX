@@ -1,15 +1,10 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import numpy as np
-# from numpy.fft import fft, ifft
 from scipy.fft import fft, ifft
 import math
 import cmath
 from scipy.spatial.transform import Rotation
 
 
-# %%
 def fastrotate3d(vol, Rot):
     """
     FASTROTATE3D Rotate a 3D volume by a given rotation matrix.
@@ -38,7 +33,6 @@ def fastrotate3d(vol, Rot):
     return vol_out
 
 
-# %%
 def adjustrotate(phi):
     """
     Decompose a rotation CCW by phi into a rotation of mult90 times 90
@@ -78,7 +72,6 @@ def adjustrotate(phi):
     return phi2, mult90
 
 
-# %%
 def fastrotateprecomp(SzX, SzY, phi):
     """
     Compute the interpolation tables required to rotate an image with SzX
@@ -140,7 +133,6 @@ def fastrotateprecomp(SzX, SzY, phi):
     return M
 
 
-# %%
 def fastrotate(vol, phi, M=None):
     """
     3-step image rotation by shearing.
@@ -196,7 +188,6 @@ def fastrotate(vol, phi, M=None):
     return vol_out
 
 
-# %%
 def rot90(A):
     """
     Rotate the image A by 90 degrees CCW.
@@ -207,7 +198,6 @@ def rot90(A):
     return B
 
 
-# %%
 def rot180(A):
     """
     Rotate the image A by 180 degrees CCW.
@@ -218,7 +208,6 @@ def rot180(A):
     return B
 
 
-# %%
 def rot270(A):
     """
     Rotate the image A by 270 degrees CCW.
@@ -229,7 +218,6 @@ def rot270(A):
     return B
 
 
-# %%
 def fastrotate3x(vol, phi):
     """
     FASTROTATE3X Rotate a 3D volume around the x-axis.
@@ -265,7 +253,6 @@ def fastrotate3x(vol, phi):
     return vol_out
 
 
-# %%
 def fastrotate3y(vol, phi):
     """
     FASTROTATE3X Rotate a 3D volume around the x-axis.
@@ -300,7 +287,6 @@ def fastrotate3y(vol, phi):
     return vol_out
 
 
-# %%
 def fastrotate3z(vol, phi):
     """
     FASTROTATE3X Rotate a 3D volume around the x-axis.
