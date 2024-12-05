@@ -205,6 +205,7 @@ def emalign(session, ref_map, query_map, downsample=64, projections=50, mask=Fal
             ref_vol_copy = ref_vol_copy * m1
             query_vol_copy = query_vol_copy * m2
 
+        # TODO - the volumes here need to be aligned outside if masking was used! NEED TO FIX ASAP
         bestR, bestdx, reflect, query_vol_aligned = align_volumes_3d.align_volumes(ref_vol_copy,
                                                                                    query_vol_copy,
                                                                                    starting_t=t1,
