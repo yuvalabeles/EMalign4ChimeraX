@@ -15,7 +15,7 @@ from . import reshift_vol
 MSG_PREFIX = "_______ | "
 
 
-def align_volumes(vol1, vol2, starting_t=None, opt=None, show_log=True, session=None):
+def align_volumes(vol1, vol2, starting_t=None, opt=None, show_log=True, session=None, original_vol1=None, original_vol2=None):
     """
     This function aligns vol2 according to vol1.
     Aligning vol2 to vol1 by finding the relative rotation, translation and reflection between vol1 and vol2,
@@ -45,10 +45,10 @@ def align_volumes(vol1, vol2, starting_t=None, opt=None, show_log=True, session=
                          Use larger value if alignment fails.
         opt.Nprojs - Number of projections to use for the alignment. Defult is 30.
     """
-    # np.random.seed(114)
+    np.random.seed(114)
 
     # Check options:
-    Nprojs, align_in_place, downsample, log, starting_t = check_options(opt, session, starting_t)
+    Nprojs, align_in_place, downsample, log, starting_t, mask = check_options(opt, session, starting_t)
 
     # Validate input:
     n_1, n_2 = validate_input(vol1, vol2)
@@ -58,6 +58,12 @@ def align_volumes(vol1, vol2, starting_t=None, opt=None, show_log=True, session=
 
     # Aligning the downsampled volumes:
     R_est, estdx_ds, reflect, corr_v = align_ds_volumes(vol1_ds.copy(), vol2_ds.copy(), Nprojs, starting_t=starting_t, log=log, show_log=show_log)
+
+    if mask:
+        if original_vol1 is not None:
+            vol1 = original_vol1.copy()
+        if original_vol2 is not None:
+            vol2 = original_vol2.copy()
 
     if reflect:
         vol2 = np.flip(vol2, axis=2)
@@ -72,11 +78,10 @@ def align_volumes(vol1, vol2, starting_t=None, opt=None, show_log=True, session=
 
 
 def align_ds_volumes(vol1_ds, vol2_ds, Nprojs=50, starting_t=0.0, log=None, show_log=False, reselect_random=True):
+    corr_ds_before = round(calculate_chimerax_correlation(vol1_ds, vol2_ds, center_data=False), 4)
     if reselect_random:
         print_to_log(log, MSG_PREFIX + f"Alignning downsampled volumes:", show_log=show_log)
-
-    corr_ds_before = round(calculate_chimerax_correlation(vol1_ds, vol2_ds, center_data=False), 4)
-    print_to_log(log, MSG_PREFIX + f"Correlation between downsampled volumes before alignment: {corr_ds_before:.4f}", show_log=show_log)
+        print_to_log(log, MSG_PREFIX + f"Correlation between downsampled volumes before alignment: {corr_ds_before:.4f}", show_log=show_log)
 
     # Generating 15236 rotation matrices (3x3) into Rots (3x3x15236):
     Rots = genRotationsGrid(75)
@@ -95,20 +100,17 @@ def align_ds_volumes(vol1_ds, vol2_ds, Nprojs=50, starting_t=0.0, log=None, show
 
     output_parameters = R_est, estdx_ds, reflect, corr_v
 
-    # We want to try the reverse matrices assignment if the corr improved in less than 10%:
-    corr_goal = corr_ds_before * 1.10
-    if corr_v < corr_goal:
+    if output_parameters[3] < corr_ds_before * 1.10:
+        print_to_log(log, MSG_PREFIX + f"Switching assignment of rotation matrices and re-alignning:", show_log=show_log)
         R_est_rev, R_est_J_rev = fast_alignment_3d(vol1_ds, vol2_ds, inds_to_ref, inds_to_align, Rots, Nprojs, starting_t, log=log, show_log=False)
         R_est_rev, estdx_ds_rev, reflect_rev, corr_v_rev = calculate_alignment_parameters(vol1_ds, vol2_ds, R_est_rev, R_est_J_rev)
-
         if corr_v_rev > corr_v:
             output_parameters = R_est_rev, estdx_ds_rev, reflect_rev, corr_v_rev
 
-    if output_parameters[3] < corr_goal and reselect_random:
+    if reselect_random and (output_parameters[3] < corr_ds_before * 1.10):
         # In the case where the results are still not well aligned, try another random selection and run just once more:
-        print_to_log(log, MSG_PREFIX + f"Re-alignning downsampled volumes:", show_log=show_log)
+        print_to_log(log, MSG_PREFIX + f"Re-alignning downsampled volumes with different rotation matrices:", show_log=show_log)
         R_est_1, estdx_ds_1, reflect_1, corr_v_1 = align_ds_volumes(vol1_ds, vol2_ds, starting_t=starting_t, Nprojs=Nprojs, log=log, show_log=show_log, reselect_random=False)
-
         if corr_v_1 > output_parameters[3]:
             output_parameters = R_est_1, estdx_ds_1, reflect_1, corr_v_1
 
@@ -331,7 +333,12 @@ def check_options(opt, session, starting_t):
     else:
         align_in_place = True
 
-    return Nprojs, align_in_place, downsample, log, starting_t
+    if hasattr(opt, 'masking'):
+        mask = opt.masking
+    else:
+        mask = False
+
+    return Nprojs, align_in_place, downsample, log, starting_t, mask
 
 
 def validate_input(vol1, vol2):
