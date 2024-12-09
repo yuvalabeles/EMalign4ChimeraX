@@ -112,7 +112,7 @@ class EMalignDialog(ToolInstance):
 
         # Create projections option:
         header_proj = EntriesRow(f, 'Projections:')
-        per = EntriesRow(f, False, '25 (fast)', True, '50 (default)', False, '125 (for noisier data)')
+        per = EntriesRow(f, True, '25 (default)', False, '50', False, '125 (for noisier data)')
         self._projections_25, self._projections_50, self._projections_125 = per.values
         radio_buttons(self._projections_25, self._projections_50, self._projections_125)
         self._projections_frame = per.frame
@@ -129,7 +129,7 @@ class EMalignDialog(ToolInstance):
         self._display_log_frame = log.frame
 
         # Create option to use masking before alignning:
-        mask = EntriesRow(f, False, 'Use masking prior to the alignment')
+        mask = EntriesRow(f, False, 'Use masking (recommended only for noisier data)')
         self._masking = mask.values[0]
         self._masking_frame = mask.frame
 
